@@ -451,7 +451,7 @@ const AttendanceTab: React.FC<{
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm"
             />
           </div>
 
@@ -463,7 +463,7 @@ const AttendanceTab: React.FC<{
                 console.log("Mengubah filter kelas ke:", e.target.value);
                 setSelectedKelas(e.target.value);
               }}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white min-w-32"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
               {uniqueClasses.map((kelas) => (
                 <option key={kelas} value={kelas}>
@@ -476,7 +476,7 @@ const AttendanceTab: React.FC<{
           <div className="text-center">
             <button
               onClick={() => setShowDebugInfo(!showDebugInfo)}
-              className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-lg"
+              className="text-sm bg-gray-200 hover:bg-gray-300 px-1 py-0.5 rounded-lg"
             >
               🔍 Info Debug
             </button>
@@ -607,7 +607,7 @@ const AttendanceTab: React.FC<{
                 <tbody>
                   {filteredStudents.map((s) => (
                     <tr key={s.id} className="border-b border-gray-200">
-                      <td style={{ width: "6cm" }} className="p-2">
+                      <td style={{ width: "1cm" }} className="p-2">
                         <p className="text-base font-semibold text-gray-800">
                           {s.name || "N/A"}
                         </p>
@@ -622,7 +622,7 @@ const AttendanceTab: React.FC<{
                               <button
                                 key={status}
                                 onClick={() => setStatus(s.id, status)}
-                                style={{ width: "1" }}
+                                style={{ width: "1cm" }}
                                 className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
                                   attendance[date]?.[s.id] === status
                                     ? `${statusColor[status]} text-white`
@@ -985,7 +985,7 @@ const MonthlyRecapTab: React.FC<{
                 console.log("Mengubah filter kelas ke:", e.target.value);
                 setSelectedKelas(e.target.value);
               }}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white min-w-32"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
               {uniqueClasses.map((kelas) => (
                 <option key={kelas} value={kelas}>
@@ -999,7 +999,7 @@ const MonthlyRecapTab: React.FC<{
             <select
               value={selectedBulan}
               onChange={(e) => setSelectedBulan(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white min-w-32"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
               {months.map((month) => (
                 <option key={month} value={month}>
@@ -1056,25 +1056,25 @@ const MonthlyRecapTab: React.FC<{
               <table className="min-w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-200 px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Nama
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-left text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Kelas
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                       Hadir
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                       Alpha
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                       Izin
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                       Sakit
                     </th>
-                    <th className="border border-gray-200 px-4 py-2 text-center text-sm font-semibold text-gray-700">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                       % Hadir
                     </th>
                   </tr>
@@ -1085,25 +1085,25 @@ const MonthlyRecapTab: React.FC<{
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
-                      <td className="border border-gray-200 px-4 py-2 text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.nama || "N/A"}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.kelas || "N/A"}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
                         {item.hadir || 0}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
                         {item.alpa || 0}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
                         {item.izin || 0}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
                         {item.sakit || 0}
                       </td>
-                      <td className="border border-gray-200 px-4 py-2 text-center text-sm text-gray-600">
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
                         {item.persenHadir !== undefined
                           ? `${item.persenHadir}%`
                           : "N/A"}
@@ -1117,13 +1117,13 @@ const MonthlyRecapTab: React.FC<{
             <div className="mt-6 flex gap-4 justify-center">
               <button
                 onClick={downloadExcel}
-                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                className="px-1 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
               >
                 📥 Download Excel
               </button>
               <button
                 onClick={downloadPDF}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
                 📄 Download PDF
               </button>
@@ -1152,7 +1152,9 @@ const GraphTab: React.FC<{
     November: { Hadir: 0, Alpha: 0, Izin: 0, Sakit: 0 },
     Desember: { Hadir: 0, Alpha: 0, Izin: 0, Sakit: 0 },
   });
-  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedKelas, setSelectedKelas] = useState<string>(
+    uniqueClasses.length > 0 ? uniqueClasses[0] : "Tidak Ada"
+  );
   const [selectedSemester, setSelectedSemester] = useState<"1" | "2">("2");
   const [statusVisibility, setStatusVisibility] = useState<StatusVisibility>({
     Hadir: true,
@@ -1166,7 +1168,7 @@ const GraphTab: React.FC<{
     setLoading(true);
     fetch(
       `${endpoint}?action=graphData&kelas=${
-        selectedKelas === "Semua" ? "" : selectedKelas
+        selectedKelas === "Tidak Ada" ? "" : selectedKelas
       }&semester=${selectedSemester}`
     )
       .then((res) => {
@@ -1342,7 +1344,7 @@ const GraphTab: React.FC<{
             <select
               value={selectedKelas}
               onChange={(e) => setSelectedKelas(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white min-w-32"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
               {uniqueClasses.map((kelas) => (
                 <option key={kelas} value={kelas}>
@@ -1356,7 +1358,7 @@ const GraphTab: React.FC<{
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value as "1" | "2")}
-              className="border border-gray-300 rounded-lg px-4 py-2 shadow-sm bg-white min-w-32"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
               <option value="1">Semester 1 (Juli-Des)</option>
               <option value="2">Semester 2 (Jan-Jun)</option>
@@ -1382,6 +1384,10 @@ const GraphTab: React.FC<{
           <div className="text-center py-8">
             <p className="text-gray-500">Memuat grafik...</p>
           </div>
+        ) : selectedKelas === "Tidak Ada" ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Tidak ada data untuk ditampilkan.</p>
+          </div>
         ) : (
           <div
             className="h-96"
@@ -1398,11 +1404,62 @@ const GraphTab: React.FC<{
   );
 };
 
+const DeleteDataTab: React.FC = () => {
+  const handleDeleteAllAttendance = () => {
+    if (
+      confirm(
+        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
+      )
+    ) {
+      fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deleteAllAttendance",
+          sheetName: "absensi",
+        }),
+      })
+        .then(() => {
+          alert(
+            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
+          );
+        })
+        .catch(() =>
+          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
+        );
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-red-700 mb-6">
+          ⚠️ Hapus Data Absensi
+        </h2>
+        <p className="text-center text-gray-600 mb-6">
+          Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
+          Google Sheets, tetapi header akan tetap dipertahankan. Gunakan dengan
+          hati-hati!
+        </p>
+        <div className="text-center">
+          <button
+            onClick={handleDeleteAllAttendance}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+          >
+            🗑️ Hapus Semua Data Absensi
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
+  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Tidak Ada"]);
   const [activeTab, setActiveTab] = useState<
-    "data" | "attendance" | "recap" | "graph"
+    "data" | "attendance" | "recap" | "graph" | "delete"
   >("data");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -1434,7 +1491,7 @@ const StudentAttendanceApp: React.FC = () => {
           if (!aIsNum && bIsNum) return 1;
           return a.localeCompare(b);
         });
-        setUniqueClasses(["Semua", ...classes]);
+        setUniqueClasses(["Tidak Ada", ...classes]);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
@@ -1477,8 +1534,10 @@ const StudentAttendanceApp: React.FC = () => {
               onRefresh={handleRecapRefresh}
               uniqueClasses={uniqueClasses}
             />
-          ) : (
+          ) : activeTab === "graph" ? (
             <GraphTab uniqueClasses={uniqueClasses} />
+          ) : (
+            <DeleteDataTab />
           )}
         </div>
 
@@ -1489,7 +1548,7 @@ const StudentAttendanceApp: React.FC = () => {
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab("data")}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors text-xs ${
+              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
                 activeTab === "data"
                   ? "bg-blue-600 text-white border-b-2 border-blue-600"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
@@ -1499,7 +1558,7 @@ const StudentAttendanceApp: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab("attendance")}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors text-xs ${
+              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
                 activeTab === "attendance"
                   ? "bg-blue-600 text-white border-b-2 border-blue-600"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
@@ -1509,23 +1568,33 @@ const StudentAttendanceApp: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab("recap")}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors text-xs ${
+              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
                 activeTab === "recap"
                   ? "bg-blue-600 text-white border-b-2 border-blue-600"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
               }`}
             >
-              📊 Rekap Bulanan
+              📊 Rekap
             </button>
             <button
               onClick={() => setActiveTab("graph")}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors text-xs ${
+              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
                 activeTab === "graph"
                   ? "bg-blue-600 text-white border-b-2 border-blue-600"
                   : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
               }`}
             >
               📈 Grafik
+            </button>
+            <button
+              onClick={() => setActiveTab("delete")}
+              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
+                activeTab === "delete"
+                  ? "bg-red-600 text-white border-b-2 border-red-600"
+                  : "text-gray-600 hover:text-red-600 hover:bg-gray-50"
+              }`}
+            >
+              ⚠️ Hapus
             </button>
           </div>
         </div>
