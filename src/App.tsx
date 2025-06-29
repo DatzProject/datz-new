@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbycZsrt4WpEK3Gm9mBq70nxihDppmkTKUOJ3HcMDiWhHi29UOOgGrbhNVGC_cCGcc4p/exec";
+  "https://script.google.com/macros/s/AKfycbyNuO_7Zbv26-pHVL8TAlXyZn7LoCSJRMa_jArVZx0SlwdMoXLxKxOHO56mOx-xvvUM/exec";
 
 interface Student {
   id: string;
@@ -76,6 +76,14 @@ interface StatusVisibility {
   Alpha: boolean;
   Izin: boolean;
   Sakit: boolean;
+}
+
+interface AttendanceHistory {
+  tanggal: string;
+  nama: string;
+  kelas: string;
+  nisn: string;
+  status: AttendanceStatus;
 }
 
 const formatDateDDMMYYYY = (isoDate: string): string => {
@@ -607,7 +615,7 @@ const AttendanceTab: React.FC<{
                 <tbody>
                   {filteredStudents.map((s) => (
                     <tr key={s.id} className="border-b border-gray-200">
-                      <td style={{ width: "1cm" }} className="p-2">
+                      <td style={{ width: "6cm" }} className="p-2">
                         <p className="text-base font-semibold text-gray-800">
                           {s.name || "N/A"}
                         </p>
@@ -615,7 +623,7 @@ const AttendanceTab: React.FC<{
                           Kelas {s.kelas || "N/A"} • NISN: {s.nisn || "N/A"}
                         </p>
                       </td>
-                      <td style={{ width: "10cm" }} className="p-2">
+                      <td style={{ width: "5cm" }} className="p-2">
                         <div className="flex justify-between">
                           {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
                             (status) => (
@@ -663,7 +671,7 @@ const MonthlyRecapTab: React.FC<{
 }> = ({ onRefresh, uniqueClasses }) => {
   const [recapData, setRecapData] = useState<MonthlyRecap[]>([]);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedBulan, setSelectedBulan] = useState<string>("Januari");
+  const [selectedBulan, setSelectedBulan] = useState<string>("Juni");
   const [loading, setLoading] = useState<boolean>(true);
 
   const months = [
@@ -1164,6 +1172,10 @@ const GraphTab: React.FC<{
   });
   const [loading, setLoading] = useState<boolean>(true);
 
+  const uniqueClassesWithDefault = React.useMemo(() => {
+    return ["Tidak Ada", ...uniqueClasses.filter((kelas) => kelas !== "Semua")];
+  }, [uniqueClasses]);
+
   useEffect(() => {
     setLoading(true);
     fetch(
@@ -1346,7 +1358,7 @@ const GraphTab: React.FC<{
               onChange={(e) => setSelectedKelas(e.target.value)}
               className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
-              {uniqueClasses.map((kelas) => (
+              {uniqueClassesWithDefault.map((kelas) => (
                 <option key={kelas} value={kelas}>
                   {kelas}
                 </option>
@@ -1455,13 +1467,278 @@ const DeleteDataTab: React.FC = () => {
   );
 };
 
+const AttendanceHistoryTab: React.FC<{
+  students: Student[];
+  uniqueClasses: string[];
+  onRefresh: () => void;
+}> = ({ students, uniqueClasses, onRefresh }) => {
+  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedNama, setSelectedNama] = useState<string>("Semua");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
+  // Fungsi untuk memformat tanggal ke DD/MM/YYYY
+  const formatDateToDDMMYYYY = (dateStr: string): string => {
+    // Jika sudah dalam format DD/MM/YYYY, kembalikan langsung
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+      return dateStr;
+    }
+    // Jika dalam format ISO atau YYYY-MM-DD, konversi
+    const [datePart] = dateStr.split("T"); // Ambil bagian tanggal saja jika ISO
+    const [year, month, day] = datePart.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
+  // Ambil data riwayat absensi
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${endpoint}?action=attendanceHistory`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          setAttendanceData(data.data || []);
+        } else {
+          alert("❌ Gagal memuat data riwayat absensi: " + data.message);
+          setAttendanceData([]);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetch:", error);
+        alert(
+          "❌ Gagal memuat data riwayat absensi. Cek console untuk detail."
+        );
+        setLoading(false);
+      });
+  }, [onRefresh]);
+
+  // Update status absensi
+  const handleUpdateStatus = (
+    record: AttendanceHistory,
+    newStatus: AttendanceStatus
+  ) => {
+    if (
+      confirm(
+        `Apakah Anda ingin mengubah status kehadiran ini menjadi "${newStatus}"?`
+      )
+    ) {
+      fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "updateAttendance",
+          tanggal: record.tanggal, // Kirim tanggal asli
+          nisn: record.nisn,
+          status: newStatus,
+        }),
+      })
+        .then(() => {
+          alert("✅ Status kehadiran berhasil diperbarui!");
+          setAttendanceData((prev) =>
+            prev.map((r) =>
+              r.nisn === record.nisn && r.tanggal === record.tanggal
+                ? { ...r, status: newStatus }
+                : r
+            )
+          );
+          onRefresh();
+        })
+        .catch(() => alert("❌ Gagal memperbarui status kehadiran."));
+    }
+  };
+
+  // Filter nama siswa berdasarkan kelas yang dipilih
+  const filteredStudents = React.useMemo(() => {
+    return selectedKelas === "Semua"
+      ? students
+      : students.filter(
+          (student) => String(student.kelas).trim() === selectedKelas
+        );
+  }, [students, selectedKelas]);
+
+  const uniqueNames = React.useMemo(() => {
+    const names = filteredStudents
+      .map((student) => student.name)
+      .filter((name): name is string => name != null && name.trim() !== "");
+    return ["Semua", ...Array.from(new Set(names)).sort()];
+  }, [filteredStudents]);
+
+  // Filter data absensi berdasarkan kelas, nama, dan tanggal
+  const filteredAttendanceData = React.useMemo(() => {
+    return attendanceData.filter((record) => {
+      const matchesKelas =
+        selectedKelas === "Semua" ||
+        String(record.kelas).trim() === selectedKelas;
+      const matchesNama =
+        selectedNama === "Semua" || record.nama === selectedNama;
+      const matchesDate =
+        selectedDate === "" || record.tanggal === selectedDate;
+      return matchesKelas && matchesNama && matchesDate;
+    });
+  }, [attendanceData, selectedKelas, selectedNama, selectedDate]);
+
+  // Reset nama filter saat kelas berubah
+  useEffect(() => {
+    setSelectedNama("Semua");
+  }, [selectedKelas]);
+
+  // Konversi input tanggal ISO ke DD/MM/YYYY untuk filter
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isoDate = e.target.value;
+    if (isoDate) {
+      setSelectedDate(formatDateToDDMMYYYY(isoDate));
+    } else {
+      setSelectedDate("");
+    }
+  };
+
+  const statusColor: Record<AttendanceStatus, string> = {
+    Hadir: "bg-green-500",
+    Izin: "bg-yellow-400",
+    Sakit: "bg-blue-400",
+    Alpha: "bg-red-500",
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
+          📜 Riwayat Absensi
+        </h2>
+
+        <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
+            <select
+              value={selectedKelas}
+              onChange={(e) => setSelectedKelas(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {uniqueClasses.map((kelas) => (
+                <option key={kelas} value={kelas}>
+                  {kelas}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Filter Nama Siswa</p>
+            <select
+              value={selectedNama}
+              onChange={(e) => setSelectedNama(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {uniqueNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
+            <input
+              type="date"
+              onChange={handleDateChange}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm"
+            />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Memuat riwayat...</p>
+          </div>
+        ) : filteredAttendanceData.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">
+              Tidak ada data riwayat absensi yang sesuai dengan filter.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse border border-gray-200">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    Tanggal
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    Nama
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    Kelas
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    NISN
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAttendanceData.map((record, index) => (
+                  <tr
+                    key={index}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {record.tanggal || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {record.nama || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {record.kelas || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {record.nisn || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center">
+                      <div className="flex justify-between">
+                        {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
+                          (status) => (
+                            <button
+                              key={status}
+                              onClick={() => handleUpdateStatus(record, status)}
+                              style={{ width: "2cm" }}
+                              className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
+                                record.status === status
+                                  ? `${statusColor[status]} text-white`
+                                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                              }`}
+                            >
+                              {status}
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Tidak Ada"]);
+  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
   const [activeTab, setActiveTab] = useState<
-    "data" | "attendance" | "recap" | "graph" | "delete"
+    "data" | "attendance" | "recap" | "graph" | "delete" | "history"
   >("data");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -1491,7 +1768,7 @@ const StudentAttendanceApp: React.FC = () => {
           if (!aIsNum && bIsNum) return 1;
           return a.localeCompare(b);
         });
-        setUniqueClasses(["Tidak Ada", ...classes]);
+        setUniqueClasses(["Semua", ...classes]);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
@@ -1508,13 +1785,112 @@ const StudentAttendanceApp: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-4 relative">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <div
+        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
+      >
+        <h2 className="text-xl font-bold text-center text-gray-800 mb-6">
+          Menu
+        </h2>
+        <button
+          onClick={() => {
+            setActiveTab("data");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "data"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          👥 Data Siswa
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("attendance");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "attendance"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📋 Absensi
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("recap");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "recap"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📊 Rekap
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("graph");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "graph"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📈 Grafik
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("delete");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "delete"
+              ? "bg-red-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          ⚠️ Hapus
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("history");
+            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "history"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📜 Riwayat Absen
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-6">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Sistem Absensi Siswa
           </h1>
           <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
+        </div>
+
+        <div className="md:hidden mb-4">
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
+          </button>
         </div>
 
         <div className="py-4">
@@ -1536,67 +1912,15 @@ const StudentAttendanceApp: React.FC = () => {
             />
           ) : activeTab === "graph" ? (
             <GraphTab uniqueClasses={uniqueClasses} />
-          ) : (
+          ) : activeTab === "delete" ? (
             <DeleteDataTab />
+          ) : (
+            <AttendanceHistoryTab
+              students={students}
+              uniqueClasses={uniqueClasses}
+              onRefresh={fetchStudents}
+            />
           )}
-        </div>
-
-        <div
-          className="bg-white rounded-lg shadow-md fixed bottom-0 left-0 w-full border-t border-gray-200"
-          style={{ zIndex: 1000 }}
-        >
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("data")}
-              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
-                activeTab === "data"
-                  ? "bg-blue-600 text-white border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              👥 Data Siswa
-            </button>
-            <button
-              onClick={() => setActiveTab("attendance")}
-              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
-                activeTab === "attendance"
-                  ? "bg-blue-600 text-white border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              📋 Absensi
-            </button>
-            <button
-              onClick={() => setActiveTab("recap")}
-              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
-                activeTab === "recap"
-                  ? "bg-blue-600 text-white border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              📊 Rekap
-            </button>
-            <button
-              onClick={() => setActiveTab("graph")}
-              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
-                activeTab === "graph"
-                  ? "bg-blue-600 text-white border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              📈 Grafik
-            </button>
-            <button
-              onClick={() => setActiveTab("delete")}
-              className={`flex-1 py-3 px-2 text-center font-medium transition-colors text-xs ${
-                activeTab === "delete"
-                  ? "bg-red-600 text-white border-b-2 border-red-600"
-                  : "text-gray-600 hover:text-red-600 hover:bg-gray-50"
-              }`}
-            >
-              ⚠️ Hapus
-            </button>
-          </div>
         </div>
       </div>
     </div>
