@@ -1502,8 +1502,14 @@ const AttendanceHistoryTab: React.FC<{
         if (data.success) {
           setAttendanceData(data.data || []);
         } else {
-          alert("❌ Gagal memuat data riwayat absensi: " + data.message);
-          setAttendanceData([]);
+          // Jika sheet kosong, set data ke array kosong tanpa alert
+          if (data.message === "Tidak ada data di sheet Absensi") {
+            setAttendanceData([]);
+          } else {
+            // Hanya tampilkan alert untuk error lain
+            alert("❌ Gagal memuat data riwayat absensi: " + data.message);
+            setAttendanceData([]);
+          }
         }
         setLoading(false);
       })
