@@ -95,35 +95,26 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
+  
   const handleLogin = () => {
     if (!username || !password) {
       setError("⚠️ Username dan password wajib diisi!");
       return;
     }
-
-    fetch(endpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "login",
-        username,
-        password,
-      }),
-    })
-      .then(() => {
-        localStorage.setItem("isAuthenticated", "true");
-        setError("");
-        setUsername("");
-        setPassword("");
-        onLogin();
-      })
-      .catch(() => {
-        setError("❌ Gagal login. Username atau password salah.");
-      });
+    
+    // Check if username is "admin" and password is "12345"
+    if (username === "admin" && password === "12345") {
+      // Login successful
+      setError("");
+      setUsername("");
+      setPassword("");
+      onLogin();
+    } else {
+      // Login failed
+      setError("❌ Gagal login. Username atau password salah.");
+    }
   };
-
+  
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
