@@ -17,6 +17,7 @@ import {
   ActiveElement,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
+import { createRoot } from "react-dom/client";
 
 ChartJS.register(
   CategoryScale,
@@ -1765,7 +1766,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
   >("data");
   const [students, setStudents] = useState<Student[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
 
   useEffect(() => {
     fetch(endpoint)
@@ -1799,6 +1800,15 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  const handleTabChange = (
+    tab: "data" | "absensi" | "rekap" | "grafik" | "riwayat"
+  ) => {
+    setActiveTab(tab);
+    if (isSidebarOpen) {
+      setIsSidebarOpen(false); // Tutup sidebar otomatis saat memilih tab
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <div
@@ -1817,7 +1827,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
         </div>
         <nav className="mt-4">
           <button
-            onClick={() => setActiveTab("data")}
+            onClick={() => handleTabChange("data")}
             className={`w-full text-left p-4 hover:bg-blue-700 ${
               activeTab === "data" ? "bg-blue-900" : ""
             }`}
@@ -1825,7 +1835,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
             📋 Data Siswa
           </button>
           <button
-            onClick={() => setActiveTab("absensi")}
+            onClick={() => handleTabChange("absensi")}
             className={`w-full text-left p-4 hover:bg-blue-700 ${
               activeTab === "absensi" ? "bg-blue-900" : ""
             }`}
@@ -1833,7 +1843,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
             ✅ Absensi
           </button>
           <button
-            onClick={() => setActiveTab("rekap")}
+            onClick={() => handleTabChange("rekap")}
             className={`w-full text-left p-4 hover:bg-blue-700 ${
               activeTab === "rekap" ? "bg-blue-900" : ""
             }`}
@@ -1841,7 +1851,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
             📊 Rekap Bulanan
           </button>
           <button
-            onClick={() => setActiveTab("grafik")}
+            onClick={() => handleTabChange("grafik")}
             className={`w-full text-left p-4 hover:bg-blue-700 ${
               activeTab === "grafik" ? "bg-blue-900" : ""
             }`}
@@ -1849,7 +1859,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
             📈 Grafik Absensi
           </button>
           <button
-            onClick={() => setActiveTab("riwayat")}
+            onClick={() => handleTabChange("riwayat")}
             className={`w-full text-left p-4 hover:bg-blue-700 ${
               activeTab === "riwayat" ? "bg-blue-900" : ""
             }`}
@@ -1857,7 +1867,12 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
             📜 Riwayat Absensi
           </button>
           <button
-            onClick={onLogout}
+            onClick={() => {
+              onLogout();
+              if (isSidebarOpen) {
+                setIsSidebarOpen(false); // Tutup sidebar otomatis saat logout
+              }
+            }}
             className="w-full text-left p-4 hover:bg-red-700 bg-red-600"
           >
             🚪 Logout
