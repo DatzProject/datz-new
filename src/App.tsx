@@ -17,7 +17,6 @@ import {
   ActiveElement,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { createRoot } from "react-dom/client";
 
 ChartJS.register(
   CategoryScale,
@@ -29,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbyUM4Llfs7dTyfP-9JyyK5sGg7lEKiz36vHhdnrU2BRiUxOSEdRNjlw5AGrTr2JrrFz/exec";
+  "https://script.google.com/macros/s/AKfycbx_VAGOi0poruTlWU18VOLgZX7gT5LNB3fqUrpXy4zjIEOyXXyfj5h_E8MhcR9ZK8lq/exec";
 
 interface Student {
   id: string;
@@ -90,75 +89,6 @@ interface AttendanceHistory {
 const formatDateDDMMYYYY = (isoDate: string): string => {
   const [year, month, day] = isoDate.split("-");
   return `${day}-${month}-${year}`;
-};
-
-const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const handleLogin = () => {
-    if (!username || !password) {
-      setError("⚠️ Username dan password wajib diisi!");
-      return;
-    }
-
-    if (username === "admin" && password === "12345") {
-      setError("");
-      setUsername("");
-      setPassword("");
-      onLogin();
-    } else {
-      setError("❌ Gagal login. Username atau password salah.");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
-          🔐 Login
-        </h2>
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
-            {error}
-          </div>
-        )}
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Username
-          </label>
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full border border-gray-300 px-4 py-2 rounded-lg"
-            placeholder="Masukkan username"
-          />
-        </div>
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-gray-300 px-4 py-2 rounded-lg"
-            placeholder="Masukkan password"
-          />
-        </div>
-        <div className="text-center">
-          <button
-            onClick={handleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors"
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const StudentDataTab: React.FC<{
@@ -389,7 +319,9 @@ const AttendanceTab: React.FC<{
 
   const uniqueClasses = React.useMemo(() => {
     console.log("Memproses siswa untuk kelas:", students);
+
     const classSet = new Set<string>();
+
     students.forEach((student) => {
       console.log(
         "Siswa:",
@@ -399,9 +331,12 @@ const AttendanceTab: React.FC<{
         "Tipe:",
         typeof student.kelas
       );
+
       let kelasValue = student.kelas;
+
       if (kelasValue != null) {
         kelasValue = String(kelasValue).trim();
+
         if (
           kelasValue !== "" &&
           kelasValue !== "undefined" &&
@@ -411,9 +346,11 @@ const AttendanceTab: React.FC<{
         }
       }
     });
+
     const classes = Array.from(classSet).sort((a, b) => {
       const aIsNum = /^\d+$/.test(a);
       const bIsNum = /^\d+$/.test(b);
+
       if (aIsNum && bIsNum) {
         return parseInt(a) - parseInt(b);
       } else if (aIsNum && !bIsNum) {
@@ -424,6 +361,7 @@ const AttendanceTab: React.FC<{
         return a.localeCompare(b);
       }
     });
+
     console.log("Kelas unik yang ditemukan:", classes);
     return ["Semua", ...classes];
   }, [students]);
@@ -432,6 +370,7 @@ const AttendanceTab: React.FC<{
     if (selectedKelas === "Semua") {
       return students;
     }
+
     return students.filter((student) => {
       if (student.kelas == null) return false;
       const studentKelas = String(student.kelas).trim();
@@ -465,7 +404,7 @@ const AttendanceTab: React.FC<{
 
     const data = studentsToSave.map((s) => ({
       tanggal: formattedDate,
-      nama: s.name || "N/A",
+      nama: s.name || "N/A*N/A",
       kelas: s.kelas || "N/A",
       nisn: s.nisn || "N/A",
       status: attendance[date]?.[s.id] || "Hadir",
@@ -1106,21 +1045,6 @@ const MonthlyRecapTab: React.FC<{
           </div>
         </div>
 
-        <div className="flex gap-4 justify-center mb-6">
-          <button
-            onClick={downloadExcel}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
-          >
-            📥 Download Excel
-          </button>
-          <button
-            onClick={downloadPDF}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-          >
-            📄 Download PDF
-          </button>
-        </div>
-
         {loading ? (
           <div className="text-center py-8">
             <p className="text-gray-500">Memuat rekap...</p>
@@ -1135,67 +1059,84 @@ const MonthlyRecapTab: React.FC<{
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    Nama
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    Kelas
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Hadir
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Alpha
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Izin
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Sakit
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    % Hadir
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRecapData.map((item, index) => (
-                  <tr
-                    key={index}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                  >
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {item.nama || "N/A"}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {item.kelas || "N/A"}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {item.hadir || 0}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {item.alpa || 0}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {item.izin || 0}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {item.sakit || 0}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {item.persenHadir !== undefined
-                        ? `${item.persenHadir}%`
-                        : "N/A"}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                      Nama
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                      Kelas
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Hadir
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Alpha
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Izin
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Sakit
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      % Hadir
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredRecapData.map((item, index) => (
+                    <tr
+                      key={index}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {item.nama || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {item.kelas || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.hadir || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.alpa || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.izin || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.sakit || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.persenHadir !== undefined
+                          ? `${item.persenHadir}%`
+                          : "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex gap-4 justify-center">
+              <button
+                onClick={downloadExcel}
+                className="px-1 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+              >
+                📥 Download Excel
+              </button>
+              <button
+                onClick={downloadPDF}
+                className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                📄 Download PDF
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1478,14 +1419,51 @@ const GraphTab: React.FC<{
 const AttendanceHistoryTab: React.FC<{
   students: Student[];
   uniqueClasses: string[];
-}> = ({ students, uniqueClasses }) => {
-  const [historyData, setHistoryData] = useState<AttendanceHistory[]>([]);
+  onRefresh: () => void;
+}> = ({ students, uniqueClasses, onRefresh }) => {
+  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedNama, setSelectedNama] = useState<string>("Semua");
   const [selectedDate, setSelectedDate] = useState<string>("");
-  const [editingRecord, setEditingRecord] = useState<AttendanceHistory | null>(
-    null
-  );
+  const [editedRecords, setEditedRecords] = useState<
+    Record<string, AttendanceStatus>
+  >({});
+
+  const formatDateToDDMMYYYY = (dateStr: string): string => {
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+    const [datePart] = dateStr.split("T");
+    const [year, month, day] = datePart.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleDeleteAllAttendance = () => {
+    if (
+      confirm(
+        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
+      )
+    ) {
+      fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deleteAllAttendance",
+          sheetName: "absensi",
+        }),
+      })
+        .then(() => {
+          alert(
+            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
+          );
+          setAttendanceData([]); // Clear the local data
+          onRefresh();
+        })
+        .catch(() =>
+          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
+        );
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -1496,82 +1474,128 @@ const AttendanceHistoryTab: React.FC<{
       })
       .then((data) => {
         if (data.success) {
-          setHistoryData(data.data || []);
+          const newData = data.data || [];
+          // Gabungkan perubahan lokal dari editedRecords ke data baru
+          const updatedData = newData.map((record: AttendanceHistory) => {
+            const key = `${record.tanggal}_${record.nisn}`;
+            return {
+              ...record,
+              status: editedRecords[key] || record.status,
+            };
+          });
+          setAttendanceData(updatedData);
         } else {
-          alert("❌ Gagal memuat riwayat absensi: " + data.message);
-          setHistoryData([]);
+          if (data.message === "Tidak ada data di sheet Absensi") {
+            setAttendanceData([]);
+          } else {
+            alert("❌ Gagal memuat data riwayat absensi: " + data.message);
+            setAttendanceData([]);
+          }
         }
         setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
-        alert("❌ Gagal memuat riwayat absensi. Cek console untuk detail.");
-        setHistoryData([]);
+        alert(
+          "❌ Gagal memuat data riwayat absensi. Cek console untuk detail."
+        );
         setLoading(false);
       });
-  }, []);
+  }, [onRefresh]);
 
-  const filteredHistory = React.useMemo(() => {
-    return historyData.filter((record) => {
-      const matchesKelas =
-        selectedKelas === "Semua" || record.kelas === selectedKelas;
-      const matchesDate = !selectedDate || record.tanggal === selectedDate;
-      return matchesKelas && matchesDate;
-    });
-  }, [historyData, selectedKelas, selectedDate]);
-
-  const uniqueDates = React.useMemo(() => {
-    const dates = new Set(historyData.map((record) => record.tanggal));
-    return ["Semua", ...Array.from(dates).sort()];
-  }, [historyData]);
-
-  const handleEdit = (record: AttendanceHistory) => {
-    setEditingRecord(record);
+  const handleUpdateStatus = (
+    record: AttendanceHistory,
+    newStatus: AttendanceStatus
+  ) => {
+    const key = `${record.tanggal}_${record.nisn}`;
+    setEditedRecords((prev) => ({
+      ...prev,
+      [key]: newStatus,
+    }));
+    // Perbarui status langsung di attendanceData untuk refleksi UI
+    setAttendanceData((prev) =>
+      prev.map((item) =>
+        item.tanggal === record.tanggal && item.nisn === record.nisn
+          ? { ...item, status: newStatus }
+          : item
+      )
+    );
   };
 
-  const handleUpdate = () => {
-    if (!editingRecord) return;
+  const filteredStudents = React.useMemo(() => {
+    return selectedKelas === "Semua"
+      ? students
+      : students.filter(
+          (student) => String(student.kelas).trim() === selectedKelas
+        );
+  }, [students, selectedKelas]);
+
+  const uniqueNames = React.useMemo(() => {
+    const names = filteredStudents
+      .map((student) => student.name)
+      .filter((name): name is string => name != null && name.trim() !== "");
+    return ["Semua", ...Array.from(new Set(names)).sort()];
+  }, [filteredStudents]);
+
+  const filteredAttendanceData = React.useMemo(() => {
+    return attendanceData.filter((record) => {
+      const matchesKelas =
+        selectedKelas === "Semua" ||
+        String(record.kelas).trim() === selectedKelas;
+      const matchesNama =
+        selectedNama === "Semua" || record.nama === selectedNama;
+      const matchesDate =
+        selectedDate === "" || record.tanggal === selectedDate;
+      return matchesKelas && matchesNama && matchesDate;
+    });
+  }, [attendanceData, selectedKelas, selectedNama, selectedDate]);
+
+  useEffect(() => {
+    setSelectedNama("Semua");
+  }, [selectedKelas]);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isoDate = e.target.value;
+    if (isoDate) {
+      setSelectedDate(formatDateToDDMMYYYY(isoDate));
+    } else {
+      setSelectedDate("");
+    }
+  };
+
+  const statusColor: Record<AttendanceStatus, string> = {
+    Hadir: "bg-green-500",
+    Izin: "bg-yellow-400",
+    Sakit: "bg-blue-400",
+    Alpha: "bg-red-500",
+  };
+
+  const saveChanges = () => {
+    if (Object.keys(editedRecords).length === 0) {
+      alert("⚠️ Tidak ada perubahan yang perlu disimpan.");
+      return;
+    }
+
+    const updates = Object.entries(editedRecords).map(([key, status]) => {
+      const [tanggal, nisn] = key.split("_");
+      return { tanggal, nisn, status };
+    });
+
     fetch(endpoint, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: "updateAttendance",
-        tanggal: editingRecord.tanggal,
-        nisn: editingRecord.nisn,
-        status: editingRecord.status,
+        type: "bulkUpdateAttendance",
+        updates,
       }),
     })
       .then(() => {
-        alert("✅ Status absensi berhasil diperbarui");
-        setEditingRecord(null);
-        fetch(`${endpoint}?action=attendanceHistory`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) setHistoryData(data.data || []);
-          });
+        alert("✅ Perubahan status kehadiran berhasil disimpan!");
+        setEditedRecords({});
+        onRefresh();
       })
-      .catch(() => alert("❌ Gagal memperbarui status absensi"));
-  };
-
-  const handleDeleteAll = () => {
-    if (
-      confirm(
-        "⚠️ Yakin ingin menghapus SEMUA data absensi? Tindakan ini tidak dapat dibatalkan!"
-      )
-    ) {
-      fetch(endpoint, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "deleteAllAttendance" }),
-      })
-        .then(() => {
-          alert("🗑️ Semua data absensi berhasil dihapus");
-          setHistoryData([]);
-        })
-        .catch(() => alert("❌ Gagal menghapus semua data absensi"));
-    }
+      .catch(() => alert("❌ Gagal menyimpan perubahan status kehadiran."));
   };
 
   return (
@@ -1580,6 +1604,20 @@ const AttendanceHistoryTab: React.FC<{
         <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
           📜 Riwayat Absensi
         </h2>
+
+        <div className="mb-6 text-center">
+          <button
+            onClick={handleDeleteAllAttendance}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+          >
+            🗑️ Hapus Semua Data Absensi
+          </button>
+          <p className="text-center text-gray-600 mt-4 mb-4">
+            Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
+            Google Sheets, tetapi header akan tetap dipertahankan. Gunakan
+            dengan hati-hati!
+          </p>
+        </div>
 
         <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
           <div className="text-center">
@@ -1597,100 +1635,37 @@ const AttendanceHistoryTab: React.FC<{
             </select>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
+            <p className="text-sm text-gray-500 mb-2">Filter Nama Siswa</p>
             <select
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={selectedNama}
+              onChange={(e) => setSelectedNama(e.target.value)}
               className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
-              {uniqueDates.map((date) => (
-                <option key={date} value={date}>
-                  {date === "Semua" ? "Semua Tanggal" : date}
+              {uniqueNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>
           </div>
           <div className="text-center">
-            <button
-              onClick={handleDeleteAll}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
-            >
-              🗑️ Hapus Semua
-            </button>
+            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
+            <input
+              type="date"
+              onChange={handleDateChange}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm"
+            />
           </div>
         </div>
 
-        {editingRecord && (
-          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-4">
-              Edit Absensi
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <p className="text-sm text-gray-600">
-                  Nama: {editingRecord.nama}
-                </p>
-                <p className="text-sm text-gray-600">
-                  NISN: {editingRecord.nisn}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Kelas: {editingRecord.kelas}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Tanggal: {editingRecord.tanggal}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-2">Status</p>
-                <select
-                  value={editingRecord.status}
-                  onChange={(e) =>
-                    setEditingRecord({
-                      ...editingRecord,
-                      status: e.target.value as AttendanceStatus,
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                >
-                  {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
-                    (status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={handleUpdate}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-              >
-                💾 Simpan
-              </button>
-              <button
-                onClick={() => setEditingRecord(null)}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium"
-              >
-                ❌ Batal
-              </button>
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">Memuat riwayat absensi...</p>
+            <p className="text-gray-500">Memuat riwayat...</p>
           </div>
-        ) : filteredHistory.length === 0 ? (
+        ) : filteredAttendanceData.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">
-              Tidak ada data absensi untuk kelas {selectedKelas}{" "}
-              {selectedDate !== "Semua" ? `tanggal ${selectedDate}` : ""}.
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Coba pilih kelas atau tanggal lain.
+              Tidak ada data riwayat absensi yang sesuai dengan filter.
             </p>
           </div>
         ) : (
@@ -1713,44 +1688,67 @@ const AttendanceHistoryTab: React.FC<{
                   <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                     Status
                   </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Aksi
-                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredHistory.map((record, index) => (
-                  <tr
-                    key={index}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                  >
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.tanggal}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.nama}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.kelas}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.nisn}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                      {record.status}
-                    </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm">
-                      <button
-                        onClick={() => handleEdit(record)}
-                        className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs"
-                      >
-                        ✏️ Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredAttendanceData.map((record, index) => {
+                  const key = `${record.tanggal}_${record.nisn}`;
+                  const currentStatus = editedRecords[key] || record.status;
+                  return (
+                    <tr
+                      key={index}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {record.tanggal || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {record.nama || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {record.kelas || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {record.nisn || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center">
+                        <div className="flex justify-between">
+                          {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
+                            (status) => (
+                              <button
+                                key={status}
+                                onClick={() =>
+                                  handleUpdateStatus(record, status)
+                                }
+                                style={{ width: "2cm" }}
+                                className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
+                                  currentStatus === status
+                                    ? `${statusColor[status]} text-white`
+                                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {Object.keys(editedRecords).length > 0 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={saveChanges}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+            >
+              💾 Simpan Perubahan
+            </button>
           </div>
         )}
       </div>
@@ -1758,200 +1756,191 @@ const AttendanceHistoryTab: React.FC<{
   );
 };
 
-const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
-  onLogout,
-}) => {
-  const [activeTab, setActiveTab] = useState<
-    "data" | "absensi" | "rekap" | "grafik" | "riwayat"
-  >("data");
+const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
+  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
+  const [activeTab, setActiveTab] = useState<
+    "data" | "attendance" | "recap" | "graph" | "history"
+  >("data");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchStudents = () => {
     fetch(endpoint)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        console.log("Data siswa diterima:", data);
+      .then((res) => res.json())
+      .then((data: Student[]) => {
+        console.log("Data siswa yang diambil:", data);
         setStudents(data);
+
+        const classSet = new Set<string>();
+        data.forEach((student) => {
+          if (student.kelas != null) {
+            const kelasValue = String(student.kelas).trim();
+            if (
+              kelasValue !== "" &&
+              kelasValue !== "undefined" &&
+              kelasValue !== "null"
+            ) {
+              classSet.add(kelasValue);
+            }
+          }
+        });
+        const classes = Array.from(classSet).sort((a, b) => {
+          const aIsNum = /^\d+$/.test(a);
+          const bIsNum = /^\d+$/.test(b);
+          if (aIsNum && bIsNum) return parseInt(a) - parseInt(b);
+          if (aIsNum && !bIsNum) return -1;
+          if (!aIsNum && bIsNum) return 1;
+          return a.localeCompare(b);
+        });
+        setUniqueClasses(["Semua", ...classes]);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
-        alert("❌ Gagal memuat data siswa. Cek console untuk detail.");
+        alert("❌ Gagal mengambil data siswa. Cek console untuk detail.");
       });
-  }, [refreshTrigger]);
+  };
 
-  const uniqueClasses = React.useMemo(() => {
-    const classes = new Set<string>();
-    students.forEach((student) => {
-      if (student.kelas) classes.add(String(student.kelas).trim());
-    });
-    return ["Semua", ...Array.from(classes).sort()];
-  }, [students]);
-
-  const handleRefresh = () => {
+  const handleRecapRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const handleTabChange = (
-    tab: "data" | "absensi" | "rekap" | "grafik" | "riwayat"
-  ) => {
-    setActiveTab(tab);
-    if (isSidebarOpen) {
-      setIsSidebarOpen(false); // Tutup sidebar otomatis saat memilih tab
-    }
-  };
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+      {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 w-64 bg-blue-800 text-white transform transition-transform duration-300 ease-in-out ${
+        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
       >
-        <div className="flex justify-between items-center p-4">
-          <h1 className="text-xl font-bold">Absensi Siswa</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-center text-gray-800">Menu</h2>
           <button
-            onClick={toggleSidebar}
-            className="text-white text-xl font-bold hover:text-gray-300"
+            onClick={() => setIsSidebarOpen(false)}
+            className="text-gray-600 hover:text-gray-800 text-2xl md:hidden"
           >
-            ✕
+            ✖️
           </button>
         </div>
-        <nav className="mt-4">
-          <button
-            onClick={() => handleTabChange("data")}
-            className={`w-full text-left p-4 hover:bg-blue-700 ${
-              activeTab === "data" ? "bg-blue-900" : ""
-            }`}
-          >
-            📋 Data Siswa
-          </button>
-          <button
-            onClick={() => handleTabChange("absensi")}
-            className={`w-full text-left p-4 hover:bg-blue-700 ${
-              activeTab === "absensi" ? "bg-blue-900" : ""
-            }`}
-          >
-            ✅ Absensi
-          </button>
-          <button
-            onClick={() => handleTabChange("rekap")}
-            className={`w-full text-left p-4 hover:bg-blue-700 ${
-              activeTab === "rekap" ? "bg-blue-900" : ""
-            }`}
-          >
-            📊 Rekap Bulanan
-          </button>
-          <button
-            onClick={() => handleTabChange("grafik")}
-            className={`w-full text-left p-4 hover:bg-blue-700 ${
-              activeTab === "grafik" ? "bg-blue-900" : ""
-            }`}
-          >
-            📈 Grafik Absensi
-          </button>
-          <button
-            onClick={() => handleTabChange("riwayat")}
-            className={`w-full text-left p-4 hover:bg-blue-700 ${
-              activeTab === "riwayat" ? "bg-blue-900" : ""
-            }`}
-          >
-            📜 Riwayat Absensi
-          </button>
-          <button
-            onClick={() => {
-              onLogout();
-              if (isSidebarOpen) {
-                setIsSidebarOpen(false); // Tutup sidebar otomatis saat logout
-              }
-            }}
-            className="w-full text-left p-4 hover:bg-red-700 bg-red-600"
-          >
-            🚪 Logout
-          </button>
-        </nav>
+        <button
+          onClick={() => {
+            setActiveTab("data");
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "data"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          👥 Data Siswa
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("attendance");
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "attendance"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📋 Absensi
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("recap");
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "recap"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📊 Rekap
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("graph");
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "graph"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📈 Grafik
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("history");
+            if (window.innerWidth < 768) setIsSidebarOpen(false);
+          }}
+          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === "history"
+              ? "bg-blue-600 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          📜 Riwayat Absen
+        </button>
       </div>
-      <div
-        className={`flex-1 p-4 transition-all duration-300 ease-in-out ${
-          isSidebarOpen ? "ml-64" : "ml-0"
-        }`}
-      >
-        {!isSidebarOpen && (
+
+      {/* Main Content */}
+      <div className="flex-1 p-6">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Sistem Absensi Siswa
+          </h1>
+          <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
+        </div>
+
+        <div className="md:hidden mb-4">
           <button
-            onClick={toggleSidebar}
-            className="fixed top-4 left-4 z-50 p-2 bg-blue-800 text-white rounded-lg hover:bg-blue-700"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16m-7 6h7"
-              />
-            </svg>
+            {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
           </button>
-        )}
-        {activeTab === "data" && (
-          <StudentDataTab
-            students={students}
-            onRefresh={handleRefresh}
-            uniqueClasses={uniqueClasses}
-          />
-        )}
-        {activeTab === "absensi" && (
-          <AttendanceTab students={students} onRecapRefresh={handleRefresh} />
-        )}
-        {activeTab === "rekap" && (
-          <MonthlyRecapTab
-            onRefresh={handleRefresh}
-            uniqueClasses={uniqueClasses}
-          />
-        )}
-        {activeTab === "grafik" && <GraphTab uniqueClasses={uniqueClasses} />}
-        {activeTab === "riwayat" && (
-          <AttendanceHistoryTab
-            students={students}
-            uniqueClasses={uniqueClasses}
-          />
-        )}
+        </div>
+
+        <div className="py-4">
+          {activeTab === "data" ? (
+            <StudentDataTab
+              students={students}
+              onRefresh={fetchStudents}
+              uniqueClasses={uniqueClasses}
+            />
+          ) : activeTab === "attendance" ? (
+            <AttendanceTab
+              students={students}
+              onRecapRefresh={handleRecapRefresh}
+            />
+          ) : activeTab === "recap" ? (
+            <MonthlyRecapTab
+              onRefresh={handleRecapRefresh}
+              uniqueClasses={uniqueClasses}
+            />
+          ) : activeTab === "graph" ? (
+            <GraphTab uniqueClasses={uniqueClasses} />
+          ) : activeTab === "history" ? (
+            <AttendanceHistoryTab
+              students={students}
+              uniqueClasses={uniqueClasses}
+              onRefresh={handleRecapRefresh}
+            />
+          ) : null}
+        </div>
       </div>
     </div>
   );
 };
 
-const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    localStorage.getItem("isAuthenticated") === "true"
-  );
-
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    setIsAuthenticated(false);
-  };
-
-  return isAuthenticated ? (
-    <StudentAttendanceApp onLogout={handleLogout} />
-  ) : (
-    <LoginPage onLogin={handleLogin} />
-  );
-};
-
-export default App;
+export default StudentAttendanceApp;
