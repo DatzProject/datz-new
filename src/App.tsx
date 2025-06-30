@@ -95,26 +95,23 @@ const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  
+
   const handleLogin = () => {
     if (!username || !password) {
       setError("⚠️ Username dan password wajib diisi!");
       return;
     }
-    
-    // Check if username is "admin" and password is "12345"
+
     if (username === "admin" && password === "12345") {
-      // Login successful
       setError("");
       setUsername("");
       setPassword("");
       onLogin();
     } else {
-      // Login failed
       setError("❌ Gagal login. Username atau password salah.");
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
@@ -1629,10 +1626,18 @@ const AttendanceHistoryTab: React.FC<{
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <p className="text-sm text-gray-600">Nama: {editingRecord.nama}</p>
-                <p className="text-sm text-gray-600">NISN: {editingRecord.nisn}</p>
-                <p className="text-sm text-gray-600">Kelas: {editingRecord.kelas}</p>
-                <p className="text-sm text-gray-600">Tanggal: {editingRecord.tanggal}</p>
+                <p className="text-sm text-gray-600">
+                  Nama: {editingRecord.nama}
+                </p>
+                <p className="text-sm text-gray-600">
+                  NISN: {editingRecord.nisn}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Kelas: {editingRecord.kelas}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Tanggal: {editingRecord.tanggal}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-2">Status</p>
@@ -1646,11 +1651,13 @@ const AttendanceHistoryTab: React.FC<{
                   }
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                 >
-                  {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
+                  {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
+                    (status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    )
+                  )}
                 </select>
               </div>
             </div>
@@ -1758,6 +1765,7 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
   >("data");
   const [students, setStudents] = useState<Student[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   useEffect(() => {
     fetch(endpoint)
@@ -1787,11 +1795,25 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      <div className="w-64 bg-blue-800 text-white h-screen fixed">
-        <div className="p-4">
+      <div
+        className={`fixed inset-y-0 left-0 w-64 bg-blue-800 text-white transform transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex justify-between items-center p-4">
           <h1 className="text-xl font-bold">Absensi Siswa</h1>
+          <button
+            onClick={toggleSidebar}
+            className="text-white text-xl font-bold hover:text-gray-300"
+          >
+            ✕
+          </button>
         </div>
         <nav className="mt-4">
           <button
@@ -1842,7 +1864,32 @@ const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
           </button>
         </nav>
       </div>
-      <div className="ml-64 flex-1 p-4">
+      <div
+        className={`flex-1 p-4 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? "ml-64" : "ml-0"
+        }`}
+      >
+        {!isSidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed top-4 left-4 z-50 p-2 bg-blue-800 text-white rounded-lg hover:bg-blue-700"
+          >
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h16m-7 6h7"
+              />
+            </svg>
+          </button>
+        )}
         {activeTab === "data" && (
           <StudentDataTab
             students={students}
