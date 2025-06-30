@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbyNuO_7Zbv26-pHVL8TAlXyZn7LoCSJRMa_jArVZx0SlwdMoXLxKxOHO56mOx-xvvUM/exec";
+  "https://script.google.com/macros/s/AKfycbyUM4Llfs7dTyfP-9JyyK5sGg7lEKiz36vHhdnrU2BRiUxOSEdRNjlw5AGrTr2JrrFz/exec";
 
 interface Student {
   id: string;
@@ -89,6 +89,87 @@ interface AttendanceHistory {
 const formatDateDDMMYYYY = (isoDate: string): string => {
   const [year, month, day] = isoDate.split("-");
   return `${day}-${month}-${year}`;
+};
+
+const LoginPage: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = () => {
+    if (!username || !password) {
+      setError("⚠️ Username dan password wajib diisi!");
+      return;
+    }
+
+    fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "login",
+        username,
+        password,
+      }),
+    })
+      .then(() => {
+        localStorage.setItem("isAuthenticated", "true");
+        setError("");
+        setUsername("");
+        setPassword("");
+        onLogin();
+      })
+      .catch(() => {
+        setError("❌ Gagal login. Username atau password salah.");
+      });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
+          🔐 Login
+        </h2>
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4">
+            {error}
+          </div>
+        )}
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Username
+          </label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full border border-gray-300 px-4 py-2 rounded-lg"
+            placeholder="Masukkan username"
+          />
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border border-gray-300 px-4 py-2 rounded-lg"
+            placeholder="Masukkan password"
+          />
+        </div>
+        <div className="text-center">
+          <button
+            onClick={handleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors"
+          >
+            Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const StudentDataTab: React.FC<{
@@ -319,9 +400,7 @@ const AttendanceTab: React.FC<{
 
   const uniqueClasses = React.useMemo(() => {
     console.log("Memproses siswa untuk kelas:", students);
-
     const classSet = new Set<string>();
-
     students.forEach((student) => {
       console.log(
         "Siswa:",
@@ -331,12 +410,9 @@ const AttendanceTab: React.FC<{
         "Tipe:",
         typeof student.kelas
       );
-
       let kelasValue = student.kelas;
-
       if (kelasValue != null) {
         kelasValue = String(kelasValue).trim();
-
         if (
           kelasValue !== "" &&
           kelasValue !== "undefined" &&
@@ -346,11 +422,9 @@ const AttendanceTab: React.FC<{
         }
       }
     });
-
     const classes = Array.from(classSet).sort((a, b) => {
       const aIsNum = /^\d+$/.test(a);
       const bIsNum = /^\d+$/.test(b);
-
       if (aIsNum && bIsNum) {
         return parseInt(a) - parseInt(b);
       } else if (aIsNum && !bIsNum) {
@@ -361,7 +435,6 @@ const AttendanceTab: React.FC<{
         return a.localeCompare(b);
       }
     });
-
     console.log("Kelas unik yang ditemukan:", classes);
     return ["Semua", ...classes];
   }, [students]);
@@ -370,7 +443,6 @@ const AttendanceTab: React.FC<{
     if (selectedKelas === "Semua") {
       return students;
     }
-
     return students.filter((student) => {
       if (student.kelas == null) return false;
       const studentKelas = String(student.kelas).trim();
@@ -1045,6 +1117,21 @@ const MonthlyRecapTab: React.FC<{
           </div>
         </div>
 
+        <div className="flex gap-4 justify-center mb-6">
+          <button
+            onClick={downloadExcel}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+          >
+            📥 Download Excel
+          </button>
+          <button
+            onClick={downloadPDF}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+          >
+            📄 Download PDF
+          </button>
+        </div>
+
         {loading ? (
           <div className="text-center py-8">
             <p className="text-gray-500">Memuat rekap...</p>
@@ -1059,84 +1146,67 @@ const MonthlyRecapTab: React.FC<{
             </p>
           </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse border border-gray-200">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                      Nama
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                      Kelas
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                      Hadir
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                      Alpha
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                      Izin
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                      Sakit
-                    </th>
-                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                      % Hadir
-                    </th>
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse border border-gray-200">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    Nama
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                    Kelas
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Hadir
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Alpha
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Izin
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Sakit
+                  </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    % Hadir
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecapData.map((item, index) => (
+                  <tr
+                    key={index}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {item.nama || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                      {item.kelas || "N/A"}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {item.hadir || 0}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {item.alpa || 0}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {item.izin || 0}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {item.sakit || 0}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {item.persenHadir !== undefined
+                        ? `${item.persenHadir}%`
+                        : "N/A"}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredRecapData.map((item, index) => (
-                    <tr
-                      key={index}
-                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {item.nama || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {item.kelas || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                        {item.hadir || 0}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                        {item.alpa || 0}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                        {item.izin || 0}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                        {item.sakit || 0}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
-                        {item.persenHadir !== undefined
-                          ? `${item.persenHadir}%`
-                          : "N/A"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-6 flex gap-4 justify-center">
-              <button
-                onClick={downloadExcel}
-                className="px-1 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-              >
-                📥 Download Excel
-              </button>
-              <button
-                onClick={downloadPDF}
-                className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-              >
-                📄 Download PDF
-              </button>
-            </div>
-          </>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -1416,81 +1486,18 @@ const GraphTab: React.FC<{
   );
 };
 
-const DeleteDataTab: React.FC = () => {
-  const handleDeleteAllAttendance = () => {
-    if (
-      confirm(
-        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
-      )
-    ) {
-      fetch(endpoint, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "deleteAllAttendance",
-          sheetName: "absensi",
-        }),
-      })
-        .then(() => {
-          alert(
-            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
-          );
-        })
-        .catch(() =>
-          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
-        );
-    }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-red-700 mb-6">
-          ⚠️ Hapus Data Absensi
-        </h2>
-        <p className="text-center text-gray-600 mb-6">
-          Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
-          Google Sheets, tetapi header akan tetap dipertahankan. Gunakan dengan
-          hati-hati!
-        </p>
-        <div className="text-center">
-          <button
-            onClick={handleDeleteAllAttendance}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
-          >
-            🗑️ Hapus Semua Data Absensi
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const AttendanceHistoryTab: React.FC<{
   students: Student[];
   uniqueClasses: string[];
-  onRefresh: () => void;
-}> = ({ students, uniqueClasses, onRefresh }) => {
-  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
+}> = ({ students, uniqueClasses }) => {
+  const [historyData, setHistoryData] = useState<AttendanceHistory[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedNama, setSelectedNama] = useState<string>("Semua");
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [editingRecord, setEditingRecord] = useState<AttendanceHistory | null>(
+    null
+  );
 
-  // Fungsi untuk memformat tanggal ke DD/MM/YYYY
-  const formatDateToDDMMYYYY = (dateStr: string): string => {
-    // Jika sudah dalam format DD/MM/YYYY, kembalikan langsung
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-      return dateStr;
-    }
-    // Jika dalam format ISO atau YYYY-MM-DD, konversi
-    const [datePart] = dateStr.split("T"); // Ambil bagian tanggal saja jika ISO
-    const [year, month, day] = datePart.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
-  // Ambil data riwayat absensi
   useEffect(() => {
     setLoading(true);
     fetch(`${endpoint}?action=attendanceHistory`)
@@ -1500,114 +1507,82 @@ const AttendanceHistoryTab: React.FC<{
       })
       .then((data) => {
         if (data.success) {
-          setAttendanceData(data.data || []);
+          setHistoryData(data.data || []);
         } else {
-          // Jika sheet kosong, set data ke array kosong tanpa alert
-          if (data.message === "Tidak ada data di sheet Absensi") {
-            setAttendanceData([]);
-          } else {
-            // Hanya tampilkan alert untuk error lain
-            alert("❌ Gagal memuat data riwayat absensi: " + data.message);
-            setAttendanceData([]);
-          }
+          alert("❌ Gagal memuat riwayat absensi: " + data.message);
+          setHistoryData([]);
         }
         setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
-        alert(
-          "❌ Gagal memuat data riwayat absensi. Cek console untuk detail."
-        );
+        alert("❌ Gagal memuat riwayat absensi. Cek console untuk detail.");
+        setHistoryData([]);
         setLoading(false);
       });
-  }, [onRefresh]);
+  }, []);
 
-  // Update status absensi
-  const handleUpdateStatus = (
-    record: AttendanceHistory,
-    newStatus: AttendanceStatus
-  ) => {
+  const filteredHistory = React.useMemo(() => {
+    return historyData.filter((record) => {
+      const matchesKelas =
+        selectedKelas === "Semua" || record.kelas === selectedKelas;
+      const matchesDate = !selectedDate || record.tanggal === selectedDate;
+      return matchesKelas && matchesDate;
+    });
+  }, [historyData, selectedKelas, selectedDate]);
+
+  const uniqueDates = React.useMemo(() => {
+    const dates = new Set(historyData.map((record) => record.tanggal));
+    return ["Semua", ...Array.from(dates).sort()];
+  }, [historyData]);
+
+  const handleEdit = (record: AttendanceHistory) => {
+    setEditingRecord(record);
+  };
+
+  const handleUpdate = () => {
+    if (!editingRecord) return;
+    fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "updateAttendance",
+        tanggal: editingRecord.tanggal,
+        nisn: editingRecord.nisn,
+        status: editingRecord.status,
+      }),
+    })
+      .then(() => {
+        alert("✅ Status absensi berhasil diperbarui");
+        setEditingRecord(null);
+        fetch(`${endpoint}?action=attendanceHistory`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success) setHistoryData(data.data || []);
+          });
+      })
+      .catch(() => alert("❌ Gagal memperbarui status absensi"));
+  };
+
+  const handleDeleteAll = () => {
     if (
       confirm(
-        `Apakah Anda ingin mengubah status kehadiran ini menjadi "${newStatus}"?`
+        "⚠️ Yakin ingin menghapus SEMUA data absensi? Tindakan ini tidak dapat dibatalkan!"
       )
     ) {
       fetch(endpoint, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "updateAttendance",
-          tanggal: record.tanggal, // Kirim tanggal asli
-          nisn: record.nisn,
-          status: newStatus,
-        }),
+        body: JSON.stringify({ type: "deleteAllAttendance" }),
       })
         .then(() => {
-          alert("✅ Status kehadiran berhasil diperbarui!");
-          setAttendanceData((prev) =>
-            prev.map((r) =>
-              r.nisn === record.nisn && r.tanggal === record.tanggal
-                ? { ...r, status: newStatus }
-                : r
-            )
-          );
-          onRefresh();
+          alert("🗑️ Semua data absensi berhasil dihapus");
+          setHistoryData([]);
         })
-        .catch(() => alert("❌ Gagal memperbarui status kehadiran."));
+        .catch(() => alert("❌ Gagal menghapus semua data absensi"));
     }
-  };
-
-  // Filter nama siswa berdasarkan kelas yang dipilih
-  const filteredStudents = React.useMemo(() => {
-    return selectedKelas === "Semua"
-      ? students
-      : students.filter(
-          (student) => String(student.kelas).trim() === selectedKelas
-        );
-  }, [students, selectedKelas]);
-
-  const uniqueNames = React.useMemo(() => {
-    const names = filteredStudents
-      .map((student) => student.name)
-      .filter((name): name is string => name != null && name.trim() !== "");
-    return ["Semua", ...Array.from(new Set(names)).sort()];
-  }, [filteredStudents]);
-
-  // Filter data absensi berdasarkan kelas, nama, dan tanggal
-  const filteredAttendanceData = React.useMemo(() => {
-    return attendanceData.filter((record) => {
-      const matchesKelas =
-        selectedKelas === "Semua" ||
-        String(record.kelas).trim() === selectedKelas;
-      const matchesNama =
-        selectedNama === "Semua" || record.nama === selectedNama;
-      const matchesDate =
-        selectedDate === "" || record.tanggal === selectedDate;
-      return matchesKelas && matchesNama && matchesDate;
-    });
-  }, [attendanceData, selectedKelas, selectedNama, selectedDate]);
-
-  // Reset nama filter saat kelas berubah
-  useEffect(() => {
-    setSelectedNama("Semua");
-  }, [selectedKelas]);
-
-  // Konversi input tanggal ISO ke DD/MM/YYYY untuk filter
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isoDate = e.target.value;
-    if (isoDate) {
-      setSelectedDate(formatDateToDDMMYYYY(isoDate));
-    } else {
-      setSelectedDate("");
-    }
-  };
-
-  const statusColor: Record<AttendanceStatus, string> = {
-    Hadir: "bg-green-500",
-    Izin: "bg-yellow-400",
-    Sakit: "bg-blue-400",
-    Alpha: "bg-red-500",
   };
 
   return (
@@ -1633,37 +1608,90 @@ const AttendanceHistoryTab: React.FC<{
             </select>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Nama Siswa</p>
+            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
             <select
-              value={selectedNama}
-              onChange={(e) => setSelectedNama(e.target.value)}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
               className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
             >
-              {uniqueNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
+              {uniqueDates.map((date) => (
+                <option key={date} value={date}>
+                  {date === "Semua" ? "Semua Tanggal" : date}
                 </option>
               ))}
             </select>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
-            <input
-              type="date"
-              onChange={handleDateChange}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm"
-            />
+            <button
+              onClick={handleDeleteAll}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+            >
+              🗑️ Hapus Semua
+            </button>
           </div>
         </div>
 
+        {editingRecord && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-yellow-800 mb-4">
+              Edit Absensi
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-600">Nama: {editingRecord.nama}</p>
+                <p className="text-sm text-gray-600">NISN: {editingRecord.nisn}</p>
+                <p className="text-sm text-gray-600">Kelas: {editingRecord.kelas}</p>
+                <p className="text-sm text-gray-600">Tanggal: {editingRecord.tanggal}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Status</p>
+                <select
+                  value={editingRecord.status}
+                  onChange={(e) =>
+                    setEditingRecord({
+                      ...editingRecord,
+                      status: e.target.value as AttendanceStatus,
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                >
+                  {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={handleUpdate}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+              >
+                💾 Simpan
+              </button>
+              <button
+                onClick={() => setEditingRecord(null)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium"
+              >
+                ❌ Batal
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">Memuat riwayat...</p>
+            <p className="text-gray-500">Memuat riwayat absensi...</p>
           </div>
-        ) : filteredAttendanceData.length === 0 ? (
+        ) : filteredHistory.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">
-              Tidak ada data riwayat absensi yang sesuai dengan filter.
+              Tidak ada data absensi untuk kelas {selectedKelas}{" "}
+              {selectedDate !== "Semua" ? `tanggal ${selectedDate}` : ""}.
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              Coba pilih kelas atau tanggal lain.
             </p>
           </div>
         ) : (
@@ -1686,45 +1714,39 @@ const AttendanceHistoryTab: React.FC<{
                   <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
                     Status
                   </th>
+                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {filteredAttendanceData.map((record, index) => (
+                {filteredHistory.map((record, index) => (
                   <tr
                     key={index}
                     className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                   >
                     <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.tanggal || "N/A"}
+                      {record.tanggal}
                     </td>
                     <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.nama || "N/A"}
+                      {record.nama}
                     </td>
                     <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.kelas || "N/A"}
+                      {record.kelas}
                     </td>
                     <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                      {record.nisn || "N/A"}
+                      {record.nisn}
                     </td>
-                    <td className="border border-gray-200 px-1 py-0.5 text-center">
-                      <div className="flex justify-between">
-                        {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
-                          (status) => (
-                            <button
-                              key={status}
-                              onClick={() => handleUpdateStatus(record, status)}
-                              style={{ width: "2cm" }}
-                              className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
-                                record.status === status
-                                  ? `${statusColor[status]} text-white`
-                                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                              }`}
-                            >
-                              {status}
-                            </button>
-                          )
-                        )}
-                      </div>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                      {record.status}
+                    </td>
+                    <td className="border border-gray-200 px-1 py-0.5 text-center text-sm">
+                      <button
+                        onClick={() => handleEdit(record)}
+                        className="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs"
+                      >
+                        ✏️ Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1737,200 +1759,146 @@ const AttendanceHistoryTab: React.FC<{
   );
 };
 
-const StudentAttendanceApp: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
+const StudentAttendanceApp: React.FC<{ onLogout: () => void }> = ({
+  onLogout,
+}) => {
   const [activeTab, setActiveTab] = useState<
-    "data" | "attendance" | "recap" | "graph" | "delete" | "history"
+    "data" | "absensi" | "rekap" | "grafik" | "riwayat"
   >("data");
+  const [students, setStudents] = useState<Student[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const fetchStudents = () => {
+  useEffect(() => {
     fetch(endpoint)
-      .then((res) => res.json())
-      .then((data: Student[]) => {
-        console.log("Data siswa yang diambil:", data);
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Data siswa diterima:", data);
         setStudents(data);
-
-        const classSet = new Set<string>();
-        data.forEach((student) => {
-          if (student.kelas != null) {
-            const kelasValue = String(student.kelas).trim();
-            if (
-              kelasValue !== "" &&
-              kelasValue !== "undefined" &&
-              kelasValue !== "null"
-            ) {
-              classSet.add(kelasValue);
-            }
-          }
-        });
-        const classes = Array.from(classSet).sort((a, b) => {
-          const aIsNum = /^\d+$/.test(a);
-          const bIsNum = /^\d+$/.test(b);
-          if (aIsNum && bIsNum) return parseInt(a) - parseInt(b);
-          if (aIsNum && !bIsNum) return -1;
-          if (!aIsNum && bIsNum) return 1;
-          return a.localeCompare(b);
-        });
-        setUniqueClasses(["Semua", ...classes]);
       })
       .catch((error) => {
         console.error("Error fetch:", error);
-        alert("❌ Gagal mengambil data siswa. Cek console untuk detail.");
+        alert("❌ Gagal memuat data siswa. Cek console untuk detail.");
       });
-  };
+  }, [refreshTrigger]);
 
-  const handleRecapRefresh = () => {
+  const uniqueClasses = React.useMemo(() => {
+    const classes = new Set<string>();
+    students.forEach((student) => {
+      if (student.kelas) classes.add(String(student.kelas).trim());
+    });
+    return ["Semua", ...Array.from(classes).sort()];
+  }, [students]);
+
+  const handleRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
-      {/* Sidebar */}
-      <div
-        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
-      >
-        <h2 className="text-xl font-bold text-center text-gray-800 mb-6">
-          Menu
-        </h2>
-        <button
-          onClick={() => {
-            setActiveTab("data");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "data"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          👥 Data Siswa
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("attendance");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "attendance"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📋 Absensi
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("recap");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "recap"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📊 Rekap
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("graph");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "graph"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📈 Grafik
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("delete");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "delete"
-              ? "bg-red-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          ⚠️ Hapus
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("history");
-            if (window.innerWidth < 768) setIsSidebarOpen(false); // Close sidebar on mobile
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "history"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📜 Riwayat Absen
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 p-6">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Sistem Absensi Siswa
-          </h1>
-          <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
+    <div className="min-h-screen bg-gray-100 flex">
+      <div className="w-64 bg-blue-800 text-white h-screen fixed">
+        <div className="p-4">
+          <h1 className="text-xl font-bold">Absensi Siswa</h1>
         </div>
-
-        <div className="md:hidden mb-4">
+        <nav className="mt-4">
           <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            onClick={() => setActiveTab("data")}
+            className={`w-full text-left p-4 hover:bg-blue-700 ${
+              activeTab === "data" ? "bg-blue-900" : ""
+            }`}
           >
-            {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
+            📋 Data Siswa
           </button>
-        </div>
-
-        <div className="py-4">
-          {activeTab === "data" ? (
-            <StudentDataTab
-              students={students}
-              onRefresh={fetchStudents}
-              uniqueClasses={uniqueClasses}
-            />
-          ) : activeTab === "attendance" ? (
-            <AttendanceTab
-              students={students}
-              onRecapRefresh={handleRecapRefresh}
-            />
-          ) : activeTab === "recap" ? (
-            <MonthlyRecapTab
-              onRefresh={handleRecapRefresh}
-              uniqueClasses={uniqueClasses}
-            />
-          ) : activeTab === "graph" ? (
-            <GraphTab uniqueClasses={uniqueClasses} />
-          ) : activeTab === "delete" ? (
-            <DeleteDataTab />
-          ) : (
-            <AttendanceHistoryTab
-              students={students}
-              uniqueClasses={uniqueClasses}
-              onRefresh={fetchStudents}
-            />
-          )}
-        </div>
+          <button
+            onClick={() => setActiveTab("absensi")}
+            className={`w-full text-left p-4 hover:bg-blue-700 ${
+              activeTab === "absensi" ? "bg-blue-900" : ""
+            }`}
+          >
+            ✅ Absensi
+          </button>
+          <button
+            onClick={() => setActiveTab("rekap")}
+            className={`w-full text-left p-4 hover:bg-blue-700 ${
+              activeTab === "rekap" ? "bg-blue-900" : ""
+            }`}
+          >
+            📊 Rekap Bulanan
+          </button>
+          <button
+            onClick={() => setActiveTab("grafik")}
+            className={`w-full text-left p-4 hover:bg-blue-700 ${
+              activeTab === "grafik" ? "bg-blue-900" : ""
+            }`}
+          >
+            📈 Grafik Absensi
+          </button>
+          <button
+            onClick={() => setActiveTab("riwayat")}
+            className={`w-full text-left p-4 hover:bg-blue-700 ${
+              activeTab === "riwayat" ? "bg-blue-900" : ""
+            }`}
+          >
+            📜 Riwayat Absensi
+          </button>
+          <button
+            onClick={onLogout}
+            className="w-full text-left p-4 hover:bg-red-700 bg-red-600"
+          >
+            🚪 Logout
+          </button>
+        </nav>
+      </div>
+      <div className="ml-64 flex-1 p-4">
+        {activeTab === "data" && (
+          <StudentDataTab
+            students={students}
+            onRefresh={handleRefresh}
+            uniqueClasses={uniqueClasses}
+          />
+        )}
+        {activeTab === "absensi" && (
+          <AttendanceTab students={students} onRecapRefresh={handleRefresh} />
+        )}
+        {activeTab === "rekap" && (
+          <MonthlyRecapTab
+            onRefresh={handleRefresh}
+            uniqueClasses={uniqueClasses}
+          />
+        )}
+        {activeTab === "grafik" && <GraphTab uniqueClasses={uniqueClasses} />}
+        {activeTab === "riwayat" && (
+          <AttendanceHistoryTab
+            students={students}
+            uniqueClasses={uniqueClasses}
+          />
+        )}
       </div>
     </div>
   );
 };
 
-export default StudentAttendanceApp;
+const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    localStorage.getItem("isAuthenticated") === "true"
+  );
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("isAuthenticated");
+    setIsAuthenticated(false);
+  };
+
+  return isAuthenticated ? (
+    <StudentAttendanceApp onLogout={handleLogout} />
+  ) : (
+    <LoginPage onLogin={handleLogin} />
+  );
+};
+
+export default App;
