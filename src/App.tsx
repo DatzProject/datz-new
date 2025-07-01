@@ -207,7 +207,7 @@ const SchoolDataTab: React.FC<{
         <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
           🏫 Data Sekolah
         </h2>
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
               Kepala Sekolah
@@ -235,7 +235,7 @@ const SchoolDataTab: React.FC<{
                 penColor="black"
                 canvasProps={{
                   className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "250px" }, // Tinggi diubah menjadi 250px
+                  style: { width: "100%", height: "150px" },
                 }}
                 onEnd={handleSaveKepsekSignature}
               />
@@ -279,7 +279,7 @@ const SchoolDataTab: React.FC<{
                 penColor="black"
                 canvasProps={{
                   className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "250px" }, // Tinggi diubah menjadi 250px
+                  style: { width: "100%", height: "150px" },
                 }}
                 onEnd={handleSaveGuruSignature}
               />
@@ -301,7 +301,7 @@ const SchoolDataTab: React.FC<{
             )}
           </div>
         </div>
-        <div className="text-center mt-6">
+        <div className="text-center">
           <button
             onClick={handleSave}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
@@ -894,8 +894,9 @@ const MonthlyRecapTab: React.FC<{
 }> = ({ onRefresh, uniqueClasses }) => {
   const [recapData, setRecapData] = useState<MonthlyRecap[]>([]);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedBulan, setSelectedBulan] = useState<string>("Juni");
+  const [selectedBulan, setSelectedBulan] = useState<string>("Oktober");
   const [loading, setLoading] = useState<boolean>(true);
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
 
   const months = [
     "Januari",
@@ -945,6 +946,24 @@ const MonthlyRecapTab: React.FC<{
         setRecapData([]);
         setLoading(false);
       });
+
+    // Fetch school data
+    fetch(`${endpoint}?action=schoolData`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && data.data && data.data.length > 0) {
+          setSchoolData(data.data[0]);
+        } else {
+          setSchoolData(null);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching school data:", error);
+        alert("❌ Gagal memuat data sekolah. Cek console untuk detail.");
+      });
   }, [selectedKelas, selectedBulan, onRefresh]);
 
   const filteredRecapData = React.useMemo(() => {
@@ -960,7 +979,7 @@ const MonthlyRecapTab: React.FC<{
     });
   }, [recapData, selectedKelas]);
 
-  const getStatusSummary = () => {
+  const getStatusSummary = (): StatusSummary => {
     const summary: StatusSummary = { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 };
     filteredRecapData.forEach((item) => {
       summary.Hadir += item.hadir || 0;
@@ -1094,6 +1113,22 @@ const MonthlyRecapTab: React.FC<{
 
   const downloadPDF = () => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const lineSpacing = 5;
+    let currentY = margin;
+
+    // Set font to Times for consistency with typical formal documents
+    doc.setFont("Times", "roman");
+
+    // Title
+    const title = `REKAP ABSENSI SISWA KELAS ${selectedKelas} ${selectedBulan.toUpperCase()} 2024`;
+    doc.setFontSize(14);
+    doc.setFont("Times", "bold");
+    doc.text(title, pageWidth / 2, currentY, { align: "center" });
+    currentY += 10;
+
+    // Table headers and data
     const headers = [
       "Nama",
       "Kelas",
@@ -1161,18 +1196,16 @@ const MonthlyRecapTab: React.FC<{
       "",
     ];
 
-    doc.text(
-      `Rekap Absensi Bulan ${selectedBulan} Kelas ${selectedKelas}`,
-      14,
-      10
-    );
-
     autoTable(doc, {
       head: [headers],
       body: [...body, totalRow, percentRow],
-      startY: 20,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [255, 255, 0], textColor: [0, 0, 0] },
+      startY: currentY,
+      styles: { font: "Times", fontSize: 8, cellPadding: 2 },
+      headStyles: {
+        fillColor: [255, 255, 0],
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+      },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
         0: { cellWidth: 50 },
@@ -1184,6 +1217,89 @@ const MonthlyRecapTab: React.FC<{
         6: { cellWidth: 20 },
       },
     });
+
+    // Update currentY after the table
+    currentY = (doc as any).lastAutoTable.finalY + 20;
+
+    // Add school data (Principal and Teacher details)
+    if (schoolData) {
+      doc.setFontSize(10);
+      doc.setFont("Times", "roman");
+
+      // Principal Section
+      const principalText = [
+        "Kepala Sekolah,",
+        "",
+        "",
+        `( ${schoolData.namaKepsek || "N/A"} )`,
+        `NIP: ${schoolData.nipKepsek || "N/A"}`,
+      ];
+      const teacherText = [
+        "Guru Kelas,",
+        "",
+        "",
+        `( ${schoolData.namaGuru || "N/A"} )`,
+        `NIP: ${schoolData.nipGuru || "N/A"}`,
+      ];
+
+      // Calculate width for signatures
+      const signatureWidth = 50;
+      const signatureHeight = 20;
+      const leftColumnX = margin;
+      const rightColumnX = pageWidth - margin - signatureWidth;
+
+      // Principal signature and text
+      if (schoolData.ttdKepsek) {
+        doc.addImage(
+          schoolData.ttdKepsek,
+          "PNG",
+          leftColumnX,
+          currentY,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+
+      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
+        align: "center",
+      });
+
+      // Sisa teks (nama dan NIP) tetap pada posisi awal
+      principalText.slice(1).forEach((line, index) => {
+        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
+          align: "center",
+        });
+      });
+
+      // Teacher signature and text
+      if (schoolData.ttdGuru) {
+        doc.addImage(
+          schoolData.ttdGuru,
+          "PNG",
+          rightColumnX,
+          currentY,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+
+      // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
+
+      // Sisa teks (nama dan NIP) tetap pada posisi awal
+      teacherText.slice(1).forEach((line, index) => {
+        doc.text(
+          line,
+          rightColumnX + 25,
+          currentY + (index + 2) * lineSpacing,
+          { align: "center" }
+        );
+      });
+    } else {
+      doc.setFontSize(10);
+      doc.text("Data sekolah tidak tersedia.", margin, currentY);
+    }
 
     const date = new Date()
       .toLocaleString("id-ID", {
@@ -2001,7 +2117,7 @@ const StudentAttendanceApp: React.FC = () => {
     | "history"
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar tertutup secara default
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -2056,18 +2172,18 @@ const StudentAttendanceApp: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       {/* Sidebar */}
       <aside
-        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed h-full top-0 left-0 transform ${
+        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 ease-in-out z-50`}
+        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
       >
         <div className="flex justify-between items-center mb-4 px-4">
           <h2 className="text-xl font-bold text-gray-800">Menu</h2>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-600 hover:text-gray-800 text-2xl"
+            className="text-gray-600 hover:text-gray-800 text-2xl md:hidden"
           >
             ✖️
           </button>
@@ -2094,7 +2210,7 @@ const StudentAttendanceApp: React.FC = () => {
                   | "delete"
                   | "history"
               );
-              setIsSidebarOpen(false); // Tutup sidebar setelah memilih tab
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
             }}
             className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab
@@ -2118,7 +2234,7 @@ const StudentAttendanceApp: React.FC = () => {
           <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
         </div>
 
-        <div className="mb-4">
+        <div className="md:hidden mb-4">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
