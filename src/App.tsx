@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import SignatureCanvas from "react-signature-canvas";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,7 +15,6 @@ import {
   ChartOptions,
   ChartEvent,
   LegendItem,
-  ActiveElement,
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 
@@ -28,13 +28,22 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbx_VAGOi0poruTlWU18VOLgZX7gT5LNB3fqUrpXy4zjIEOyXXyfj5h_E8MhcR9ZK8lq/exec";
+  "https://script.google.com/macros/s/AKfycbyaOpgPb9_IbfjBUI93IiNBAGul2GsgrNpQQFJ3VLn1TScq8n4d3Pc3xjTj-U0j3Iij/exec";
 
 interface Student {
   id: string;
   name: string | null | undefined;
   nisn: string | null | undefined;
   kelas: string | null | undefined;
+}
+
+interface SchoolData {
+  namaKepsek: string;
+  nipKepsek: string;
+  ttdKepsek: string;
+  namaGuru: string;
+  nipGuru: string;
+  ttdGuru: string;
 }
 
 type AttendanceStatus = "Hadir" | "Izin" | "Sakit" | "Alpha";
@@ -88,7 +97,221 @@ interface AttendanceHistory {
 
 const formatDateDDMMYYYY = (isoDate: string): string => {
   const [year, month, day] = isoDate.split("-");
-  return `${day}-${month}-${year}`;
+  return `${day}/${month}/${year}`;
+};
+
+const SchoolDataTab: React.FC<{
+  onRefresh: () => void;
+}> = ({ onRefresh }) => {
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+  const [namaKepsek, setNamaKepsek] = useState("");
+  const [nipKepsek, setNipKepsek] = useState("");
+  const [namaGuru, setNamaGuru] = useState("");
+  const [nipGuru, setNipGuru] = useState("");
+  const [ttdKepsek, setTtdKepsek] = useState("");
+  const [ttdGuru, setTtdGuru] = useState("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const kepsekSigCanvas = useRef<SignatureCanvas>(null);
+  const guruSigCanvas = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    fetch(`${endpoint}?action=schoolData`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && data.data && data.data.length > 0) {
+          const record = data.data[0];
+          setSchoolData(record);
+          setNamaKepsek(record.namaKepsek);
+          setNipKepsek(record.nipKepsek);
+          setTtdKepsek(record.ttdKepsek);
+          setNamaGuru(record.namaGuru);
+          setNipGuru(record.nipGuru);
+          setTtdGuru(record.ttdGuru);
+        } else {
+          setSchoolData(null);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching school data:", error);
+        alert("❌ Gagal memuat data sekolah. Cek console untuk detail.");
+        setLoading(false);
+      });
+  }, [onRefresh]);
+
+  const handleSave = () => {
+    if (!namaKepsek || !nipKepsek || !namaGuru || !nipGuru) {
+      alert("⚠️ Semua field wajib diisi kecuali tanda tangan!");
+      return;
+    }
+
+    const data: SchoolData = {
+      namaKepsek,
+      nipKepsek,
+      ttdKepsek: ttdKepsek || "",
+      namaGuru,
+      nipGuru,
+      ttdGuru: ttdGuru || "",
+    };
+
+    fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "schoolData",
+        ...data,
+      }),
+    })
+      .then(() => {
+        alert("✅ Data sekolah berhasil diperbarui!");
+        onRefresh();
+      })
+      .catch(() => alert("❌ Gagal memperbarui data sekolah."));
+  };
+
+  const handleClearKepsekSignature = () => {
+    kepsekSigCanvas.current?.clear();
+    setTtdKepsek("");
+  };
+
+  const handleClearGuruSignature = () => {
+    guruSigCanvas.current?.clear();
+    setTtdGuru("");
+  };
+
+  const handleSaveKepsekSignature = () => {
+    const signature = kepsekSigCanvas.current?.toDataURL("image/png");
+    setTtdKepsek(signature || "");
+  };
+
+  const handleSaveGuruSignature = () => {
+    const signature = guruSigCanvas.current?.toDataURL("image/png");
+    setTtdGuru(signature || "");
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Memuat data sekolah...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
+          🏫 Data Sekolah
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              Kepala Sekolah
+            </h3>
+            <input
+              type="text"
+              placeholder="Nama Kepala Sekolah"
+              value={namaKepsek}
+              onChange={(e) => setNamaKepsek(e.target.value)}
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+            />
+            <input
+              type="text"
+              placeholder="NIP Kepala Sekolah"
+              value={nipKepsek}
+              onChange={(e) => setNipKepsek(e.target.value)}
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+            />
+            <div className="mb-2">
+              <p className="text-sm text-gray-500 mb-1">
+                Tanda Tangan Kepala Sekolah
+              </p>
+              <SignatureCanvas
+                ref={kepsekSigCanvas}
+                penColor="black"
+                canvasProps={{
+                  className: "border border-gray-300 rounded-lg",
+                  style: { width: "100%", height: "150px" },
+                }}
+                onEnd={handleSaveKepsekSignature}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={handleClearKepsekSignature}
+                  className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                >
+                  🗑️ Hapus TTD
+                </button>
+              </div>
+            </div>
+            {ttdKepsek && (
+              <img
+                src={ttdKepsek}
+                alt="Tanda Tangan Kepala Sekolah"
+                className="mt-2 max-w-full h-20 border border-gray-200 rounded-lg"
+              />
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Guru</h3>
+            <input
+              type="text"
+              placeholder="Nama Guru"
+              value={namaGuru}
+              onChange={(e) => setNamaGuru(e.target.value)}
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+            />
+            <input
+              type="text"
+              placeholder="NIP Guru"
+              value={nipGuru}
+              onChange={(e) => setNipGuru(e.target.value)}
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+            />
+            <div className="mb-2">
+              <p className="text-sm text-gray-500 mb-1">Tanda Tangan Guru</p>
+              <SignatureCanvas
+                ref={guruSigCanvas}
+                penColor="black"
+                canvasProps={{
+                  className: "border border-gray-300 rounded-lg",
+                  style: { width: "100%", height: "150px" },
+                }}
+                onEnd={handleSaveGuruSignature}
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={handleClearGuruSignature}
+                  className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                >
+                  🗑️ Hapus TTD
+                </button>
+              </div>
+            </div>
+            {ttdGuru && (
+              <img
+                src={ttdGuru}
+                alt="Tanda Tangan Guru"
+                className="mt-2 max-w-full h-20 border border-gray-200 rounded-lg"
+              />
+            )}
+          </div>
+        </div>
+        <div className="text-center">
+          <button
+            onClick={handleSave}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+          >
+            💾 Simpan Data Sekolah
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const StudentDataTab: React.FC<{
@@ -404,7 +627,7 @@ const AttendanceTab: React.FC<{
 
     const data = studentsToSave.map((s) => ({
       tanggal: formattedDate,
-      nama: s.name || "N/A*N/A",
+      nama: s.name || "N/A",
       kelas: s.kelas || "N/A",
       nisn: s.nisn || "N/A",
       status: attendance[date]?.[s.id] || "Hadir",
@@ -1416,27 +1639,7 @@ const GraphTab: React.FC<{
   );
 };
 
-const AttendanceHistoryTab: React.FC<{
-  students: Student[];
-  uniqueClasses: string[];
-  onRefresh: () => void;
-}> = ({ students, uniqueClasses, onRefresh }) => {
-  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedNama, setSelectedNama] = useState<string>("Semua");
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [editedRecords, setEditedRecords] = useState<
-    Record<string, AttendanceStatus>
-  >({});
-
-  const formatDateToDDMMYYYY = (dateStr: string): string => {
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
-    const [datePart] = dateStr.split("T");
-    const [year, month, day] = datePart.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
+const DeleteDataTab: React.FC = () => {
   const handleDeleteAllAttendance = () => {
     if (
       confirm(
@@ -1456,13 +1659,56 @@ const AttendanceHistoryTab: React.FC<{
           alert(
             "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
           );
-          setAttendanceData([]); // Clear the local data
-          onRefresh();
         })
         .catch(() =>
           alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
         );
     }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-red-700 mb-6">
+          ⚠️ Hapus Data Absensi
+        </h2>
+        <p className="text-center text-gray-600 mb-6">
+          Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
+          Google Sheets, tetapi header akan tetap dipertahankan. Gunakan dengan
+          hati-hati!
+        </p>
+        <div className="text-center">
+          <button
+            onClick={handleDeleteAllAttendance}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+          >
+            🗑️ Hapus Semua Data Absensi
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AttendanceHistoryTab: React.FC<{
+  students: Student[];
+  uniqueClasses: string[];
+  onRefresh: () => void;
+}> = ({ students, uniqueClasses, onRefresh }) => {
+  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedNama, setSelectedNama] = useState<string>("Semua");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [editedRecords, setEditedRecords] = useState<
+    Record<string, AttendanceStatus>
+  >({});
+
+  const formatDateToDDMMYYYY = (dateStr: string): string => {
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+    const [datePart] = dateStr.split("T");
+    const [year, month, day] = datePart.split("-");
+    return `${day}/${month}/${year}`;
   };
 
   useEffect(() => {
@@ -1605,20 +1851,6 @@ const AttendanceHistoryTab: React.FC<{
           📜 Riwayat Absensi
         </h2>
 
-        <div className="mb-6 text-center">
-          <button
-            onClick={handleDeleteAllAttendance}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
-          >
-            🗑️ Hapus Semua Data Absensi
-          </button>
-          <p className="text-center text-gray-600 mt-4 mb-4">
-            Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
-            Google Sheets, tetapi header akan tetap dipertahankan. Gunakan
-            dengan hati-hati!
-          </p>
-        </div>
-
         <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
           <div className="text-center">
             <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
@@ -1760,14 +1992,23 @@ const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
   const [activeTab, setActiveTab] = useState<
-    "data" | "attendance" | "recap" | "graph" | "history"
-  >("data");
+    | "schoolData"
+    | "studentData"
+    | "attendance"
+    | "recap"
+    | "graph"
+    | "delete"
+    | "history"
+  >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const fetchStudents = () => {
     fetch(endpoint)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then((data: Student[]) => {
         console.log("Data siswa yang diambil:", data);
         setStudents(data);
@@ -1801,6 +2042,11 @@ const StudentAttendanceApp: React.FC = () => {
       });
   };
 
+  const handleRefresh = () => {
+    fetchStudents();
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const handleRecapRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
@@ -1812,13 +2058,13 @@ const StudentAttendanceApp: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       {/* Sidebar */}
-      <div
+      <aside
         className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-center text-gray-800">Menu</h2>
+        <div className="flex justify-between items-center mb-4 px-4">
+          <h2 className="text-xl font-bold text-gray-800">Menu</h2>
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="text-gray-600 hover:text-gray-800 text-2xl md:hidden"
@@ -1826,75 +2072,45 @@ const StudentAttendanceApp: React.FC = () => {
             ✖️
           </button>
         </div>
-        <button
-          onClick={() => {
-            setActiveTab("data");
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "data"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          👥 Data Siswa
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("attendance");
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "attendance"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📋 Absensi
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("recap");
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "recap"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📊 Rekap
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("graph");
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "graph"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📈 Grafik
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("history");
-            if (window.innerWidth < 768) setIsSidebarOpen(false);
-          }}
-          className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === "history"
-              ? "bg-blue-600 text-white"
-              : "text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          📜 Riwayat Absen
-        </button>
-      </div>
+        {[
+          { tab: "schoolData", label: "🏫 Data Sekolah" },
+          { tab: "studentData", label: "👥 Data Siswa" },
+          { tab: "attendance", label: "📋 Absensi" },
+          { tab: "recap", label: "📊 Rekap" },
+          { tab: "graph", label: "📈 Grafik" },
+          { tab: "delete", label: "⚠️ Hapus" },
+          { tab: "history", label: "📜 Riwayat Absen" },
+        ].map(({ tab, label }) => (
+          <button
+            key={tab}
+            onClick={() => {
+              setActiveTab(
+                tab as
+                  | "schoolData"
+                  | "studentData"
+                  | "attendance"
+                  | "recap"
+                  | "graph"
+                  | "delete"
+                  | "history"
+              );
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
+            className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === tab
+                ? tab === "delete"
+                  ? "bg-red-600 text-white"
+                  : "bg-blue-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </aside>
 
       {/* Main Content */}
-      <div className="flex-1 p-6">
+      <main className="flex-1 p-6">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Sistem Absensi Siswa
@@ -1912,33 +2128,39 @@ const StudentAttendanceApp: React.FC = () => {
         </div>
 
         <div className="py-4">
-          {activeTab === "data" ? (
+          {activeTab === "schoolData" && (
+            <SchoolDataTab onRefresh={handleRefresh} />
+          )}
+          {activeTab === "studentData" && (
             <StudentDataTab
               students={students}
               onRefresh={fetchStudents}
               uniqueClasses={uniqueClasses}
             />
-          ) : activeTab === "attendance" ? (
+          )}
+          {activeTab === "attendance" && (
             <AttendanceTab
               students={students}
               onRecapRefresh={handleRecapRefresh}
             />
-          ) : activeTab === "recap" ? (
+          )}
+          {activeTab === "recap" && (
             <MonthlyRecapTab
               onRefresh={handleRecapRefresh}
               uniqueClasses={uniqueClasses}
             />
-          ) : activeTab === "graph" ? (
-            <GraphTab uniqueClasses={uniqueClasses} />
-          ) : activeTab === "history" ? (
+          )}
+          {activeTab === "graph" && <GraphTab uniqueClasses={uniqueClasses} />}
+          {activeTab === "delete" && <DeleteDataTab />}
+          {activeTab === "history" && (
             <AttendanceHistoryTab
               students={students}
               uniqueClasses={uniqueClasses}
-              onRefresh={handleRecapRefresh}
+              onRefresh={fetchStudents}
             />
-          ) : null}
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
