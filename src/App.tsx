@@ -111,6 +111,8 @@ const SchoolDataTab: React.FC<{
   const [ttdKepsek, setTtdKepsek] = useState("");
   const [ttdGuru, setTtdGuru] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
+  const [isKepsekSigning, setIsKepsekSigning] = useState(false);
+  const [isGuruSigning, setIsGuruSigning] = useState(false);
   const kepsekSigCanvas = useRef<SignatureCanvas>(null);
   const guruSigCanvas = useRef<SignatureCanvas>(null);
 
@@ -175,22 +177,40 @@ const SchoolDataTab: React.FC<{
 
   const handleClearKepsekSignature = () => {
     kepsekSigCanvas.current?.clear();
-    setTtdKepsek("");
   };
 
   const handleClearGuruSignature = () => {
     guruSigCanvas.current?.clear();
-    setTtdGuru("");
   };
 
   const handleSaveKepsekSignature = () => {
     const signature = kepsekSigCanvas.current?.toDataURL("image/png");
-    setTtdKepsek(signature || "");
+    if (signature && !kepsekSigCanvas.current?.isEmpty()) {
+      setTtdKepsek(signature);
+      setIsKepsekSigning(false);
+    } else {
+      alert("⚠️ Tanda tangan kepala sekolah kosong!");
+    }
   };
 
   const handleSaveGuruSignature = () => {
     const signature = guruSigCanvas.current?.toDataURL("image/png");
-    setTtdGuru(signature || "");
+    if (signature && !guruSigCanvas.current?.isEmpty()) {
+      setTtdGuru(signature);
+      setIsGuruSigning(false);
+    } else {
+      alert("⚠️ Tanda tangan guru kosong!");
+    }
+  };
+
+  const handleStartKepsekSigning = () => {
+    setIsKepsekSigning(true);
+    kepsekSigCanvas.current?.clear();
+  };
+
+  const handleStartGuruSigning = () => {
+    setIsGuruSigning(true);
+    guruSigCanvas.current?.clear();
   };
 
   if (loading) {
@@ -207,7 +227,7 @@ const SchoolDataTab: React.FC<{
         <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
           🏫 Data Sekolah
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
               Kepala Sekolah
@@ -230,19 +250,47 @@ const SchoolDataTab: React.FC<{
               <p className="text-sm text-gray-500 mb-1">
                 Tanda Tangan Kepala Sekolah
               </p>
-              <SignatureCanvas
-                ref={kepsekSigCanvas}
-                penColor="black"
-                canvasProps={{
-                  className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "300px" },
-                }}
-                onEnd={handleSaveKepsekSignature}
-              />
+              <div className="relative">
+                <SignatureCanvas
+                  ref={kepsekSigCanvas}
+                  penColor="black"
+                  canvasProps={{
+                    className: `border border-gray-300 rounded-lg ${
+                      !isKepsekSigning ? "opacity-50 pointer-events-none" : ""
+                    }`,
+                    style: { width: "100%", height: "300px" },
+                  }}
+                  clearOnResize={false}
+                />
+                {!isKepsekSigning && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-50">
+                    <span className="text-gray-500">
+                      Klik "Mulai Tanda Tangan" untuk mengaktifkan
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2 mt-2">
+                {!isKepsekSigning && (
+                  <button
+                    onClick={handleStartKepsekSigning}
+                    className="px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm"
+                  >
+                    ✍️ Mulai Tanda Tangan
+                  </button>
+                )}
+                {isKepsekSigning && (
+                  <button
+                    onClick={handleSaveKepsekSignature}
+                    className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                  >
+                    💾 Simpan Tanda Tangan
+                  </button>
+                )}
                 <button
                   onClick={handleClearKepsekSignature}
                   className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                  disabled={!isKepsekSigning}
                 >
                   🗑️ Hapus TTD
                 </button>
@@ -274,19 +322,47 @@ const SchoolDataTab: React.FC<{
             />
             <div className="mb-2">
               <p className="text-sm text-gray-500 mb-1">Tanda Tangan Guru</p>
-              <SignatureCanvas
-                ref={guruSigCanvas}
-                penColor="black"
-                canvasProps={{
-                  className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "150px" },
-                }}
-                onEnd={handleSaveGuruSignature}
-              />
+              <div className="relative">
+                <SignatureCanvas
+                  ref={guruSigCanvas}
+                  penColor="black"
+                  canvasProps={{
+                    className: `border border-gray-300 rounded-lg ${
+                      !isGuruSigning ? "opacity-50 pointer-events-none" : ""
+                    }`,
+                    style: { width: "100%", height: "300px" },
+                  }}
+                  clearOnResize={false}
+                />
+                {!isGuruSigning && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200 bg-opacity-50">
+                    <span className="text-gray-500">
+                      Klik "Mulai Tanda Tangan" untuk mengaktifkan
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2 mt-2">
+                {!isGuruSigning && (
+                  <button
+                    onClick={handleStartGuruSigning}
+                    className="px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm"
+                  >
+                    ✍️ Mulai Tanda Tangan
+                  </button>
+                )}
+                {isGuruSigning && (
+                  <button
+                    onClick={handleSaveGuruSignature}
+                    className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                  >
+                    💾 Simpan Tanda Tangan
+                  </button>
+                )}
                 <button
                   onClick={handleClearGuruSignature}
                   className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                  disabled={!isGuruSigning}
                 >
                   🗑️ Hapus TTD
                 </button>
@@ -2104,6 +2180,41 @@ const AttendanceHistoryTab: React.FC<{
   );
 };
 
+// Komponen SplashScreen
+const SplashScreen: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+      <style>
+        {`
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.2);
+              opacity: 0.7;
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          .animate-pulse-custom {
+            animation: pulse 2s infinite;
+          }
+        `}
+      </style>
+      <img
+        src="\images\IMG_20250518_064410.png"
+        alt="Logo Aplikasi"
+        className="w-52 h-70 mb-4 animate-pulse-custom" //Pengaturan ukuran logo
+      />
+      <p className="text-gray-800 text-lg font-semibold">Tunggu Sebentar</p>
+    </div>
+  );
+};
+
 const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
@@ -2118,6 +2229,7 @@ const StudentAttendanceApp: React.FC = () => {
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -2168,22 +2280,32 @@ const StudentAttendanceApp: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchStudents();
+    // Simulasi loading selama 3 detik
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      fetchStudents();
+    }, 3000);
+
+    return () => clearTimeout(timer);
   }, []);
 
+  if (isLoading) {
+    return <SplashScreen />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Sidebar */}
       <aside
-        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
+        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed h-full top-0 left-0 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
+        } transition-transform duration-300 ease-in-out z-50`}
       >
         <div className="flex justify-between items-center mb-4 px-4">
           <h2 className="text-xl font-bold text-gray-800">Menu</h2>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-600 hover:text-gray-800 text-2xl md:hidden"
+            className="text-gray-600 hover:text-gray-800 text-2xl"
           >
             ✖️
           </button>
@@ -2210,7 +2332,7 @@ const StudentAttendanceApp: React.FC = () => {
                   | "delete"
                   | "history"
               );
-              if (window.innerWidth < 768) setIsSidebarOpen(false);
+              setIsSidebarOpen(false);
             }}
             className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab
@@ -2225,22 +2347,27 @@ const StudentAttendanceApp: React.FC = () => {
         ))}
       </aside>
 
+      {/* Hamburger Menu Button */}
+      <div className="fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+        >
+          {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
+        </button>
+      </div>
+
       {/* Main Content */}
-      <main className="flex-1 p-6">
+      <main
+        className={`flex-1 p-6 transition-all duration-300 ${
+          isSidebarOpen ? "ml-64" : "ml-0"
+        } mt-16`}
+      >
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Sistem Absensi Siswa
           </h1>
           <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
-        </div>
-
-        <div className="md:hidden mb-4">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-          >
-            {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
-          </button>
         </div>
 
         <div className="py-4">
