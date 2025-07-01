@@ -208,8 +208,6 @@ const SchoolDataTab: React.FC<{
           🏫 Data Sekolah
         </h2>
         <div className="space-y-6">
-          {" "}
-          {/* Menggunakan space-y-6 untuk tata letak vertikal */}
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
               Kepala Sekolah
@@ -237,7 +235,7 @@ const SchoolDataTab: React.FC<{
                 penColor="black"
                 canvasProps={{
                   className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "150px" },
+                  style: { width: "100%", height: "250px" }, // Tinggi diubah menjadi 250px
                 }}
                 onEnd={handleSaveKepsekSignature}
               />
@@ -281,7 +279,7 @@ const SchoolDataTab: React.FC<{
                 penColor="black"
                 canvasProps={{
                   className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "150px" },
+                  style: { width: "100%", height: "250px" }, // Tinggi diubah menjadi 250px
                 }}
                 onEnd={handleSaveGuruSignature}
               />
