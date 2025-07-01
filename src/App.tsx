@@ -2001,7 +2001,7 @@ const StudentAttendanceApp: React.FC = () => {
     | "history"
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Sidebar tertutup secara default
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -2056,18 +2056,18 @@ const StudentAttendanceApp: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Sidebar */}
       <aside
-        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed md:static h-full top-0 left-0 transform ${
+        className={`bg-white shadow-md w-64 space-y-2 py-6 px-2 fixed h-full top-0 left-0 transform ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 transition-transform duration-300 ease-in-out z-50`}
+        } transition-transform duration-300 ease-in-out z-50`}
       >
         <div className="flex justify-between items-center mb-4 px-4">
           <h2 className="text-xl font-bold text-gray-800">Menu</h2>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-600 hover:text-gray-800 text-2xl md:hidden"
+            className="text-gray-600 hover:text-gray-800 text-2xl"
           >
             ✖️
           </button>
@@ -2094,7 +2094,7 @@ const StudentAttendanceApp: React.FC = () => {
                   | "delete"
                   | "history"
               );
-              if (window.innerWidth < 768) setIsSidebarOpen(false);
+              setIsSidebarOpen(false); // Tutup sidebar setelah memilih tab
             }}
             className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab
@@ -2118,7 +2118,7 @@ const StudentAttendanceApp: React.FC = () => {
           <p className="text-gray-600">Kelola data siswa dan absensi harian</p>
         </div>
 
-        <div className="md:hidden mb-4">
+        <div className="mb-4">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg"
