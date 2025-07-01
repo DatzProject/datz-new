@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbyaOpgPb9_IbfjBUI93IiNBAGul2GsgrNpQQFJ3VLn1TScq8n4d3Pc3xjTj-U0j3Iij/exec";
+  "https://script.google.com/macros/s/AKfycbwPEABGGE0T3kUal5p1Av4capyArYMMy4BhC1ZGSF0KTuDb7hHHTQn2YVX4Is-JARo2/exec";
 
 interface Student {
   id: string;
@@ -140,7 +140,7 @@ const SchoolDataTab: React.FC<{
         alert("❌ Gagal memuat data sekolah. Cek console untuk detail.");
         setLoading(false);
       });
-  }, [onRefresh]);
+  }, []);
 
   const handleSave = () => {
     if (!namaKepsek || !nipKepsek || !namaGuru || !nipGuru) {
@@ -235,7 +235,7 @@ const SchoolDataTab: React.FC<{
                 penColor="black"
                 canvasProps={{
                   className: "border border-gray-300 rounded-lg",
-                  style: { width: "100%", height: "150px" },
+                  style: { width: "100%", height: "300px" },
                 }}
                 onEnd={handleSaveKepsekSignature}
               />
