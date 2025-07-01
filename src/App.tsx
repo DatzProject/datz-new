@@ -207,7 +207,9 @@ const SchoolDataTab: React.FC<{
         <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
           🏫 Data Sekolah
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="space-y-6">
+          {" "}
+          {/* Menggunakan space-y-6 untuk tata letak vertikal */}
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">
               Kepala Sekolah
@@ -301,7 +303,7 @@ const SchoolDataTab: React.FC<{
             )}
           </div>
         </div>
-        <div className="text-center">
+        <div className="text-center mt-6">
           <button
             onClick={handleSave}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
