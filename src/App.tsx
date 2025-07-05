@@ -28,7 +28,9 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbwPEABGGE0T3kUal5p1Av4capyArYMMy4BhC1ZGSF0KTuDb7hHHTQn2YVX4Is-JARo2/exec";
+  "https://script.google.com/macros/s/AKfycbxdmk95BHhPRedaP5KfSseBAhgF4UbIYAbiNHcWjIIHDv0XDTdKueDn-cju7P-xJPnt/exec";
+const SHEET_SEMESTER1 = "RekapSemester1";
+const SHEET_SEMESTER2 = "RekapSemester2";
 
 interface Student {
   id: string;
@@ -93,6 +95,16 @@ interface AttendanceHistory {
   kelas: string;
   nisn: string;
   status: AttendanceStatus;
+}
+
+interface SemesterRecap {
+  nama: string;
+  kelas: string;
+  hadir: number;
+  alpa: number;
+  izin: number;
+  sakit: number;
+  persenHadir: number;
 }
 
 const formatDateDDMMYYYY = (isoDate: string): string => {
@@ -971,6 +983,10 @@ const MonthlyRecapTab: React.FC<{
   const [recapData, setRecapData] = useState<MonthlyRecap[]>([]);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
   const [selectedBulan, setSelectedBulan] = useState<string>("Oktober");
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [placeName, setPlaceName] = useState<string>("Makassar");
   const [loading, setLoading] = useState<boolean>(true);
   const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
 
@@ -1295,12 +1311,23 @@ const MonthlyRecapTab: React.FC<{
     });
 
     // Update currentY after the table
-    currentY = (doc as any).lastAutoTable.finalY + 20;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
     // Add school data (Principal and Teacher details)
     if (schoolData) {
       doc.setFontSize(10);
       doc.setFont("Times", "roman");
+
+      // Add place and date above Guru Kelas, centered
+      const formattedDate = new Date(selectedDate).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+      const placeDateText = `${placeName}, ${formattedDate}`;
+      const rightColumnX = pageWidth - margin - 50; // Signature width is 50
+      doc.text(placeDateText, rightColumnX + 25, currentY, { align: "center" });
+      currentY += 5; // Keep close to "Guru Kelas"
 
       // Principal Section
       const principalText = [
@@ -1322,7 +1349,6 @@ const MonthlyRecapTab: React.FC<{
       const signatureWidth = 50;
       const signatureHeight = 20;
       const leftColumnX = margin;
-      const rightColumnX = pageWidth - margin - signatureWidth;
 
       // Principal signature and text
       if (schoolData.ttdKepsek) {
@@ -1430,6 +1456,25 @@ const MonthlyRecapTab: React.FC<{
                 </option>
               ))}
             </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
+            <input
+              type="text"
+              value={placeName}
+              onChange={(e) => setPlaceName(e.target.value)}
+              placeholder="Masukkan nama tempat"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            />
           </div>
         </div>
 
@@ -2180,37 +2225,591 @@ const AttendanceHistoryTab: React.FC<{
   );
 };
 
-// Komponen SplashScreen
-const SplashScreen: React.FC = () => {
+const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
+  uniqueClasses,
+}) => {
+  const [recapData, setRecapData] = useState<SemesterRecap[]>([]);
+  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedSemester, setSelectedSemester] = useState<"1" | "2">("1");
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [placeName, setPlaceName] = useState<string>("Makassar");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const sheetName =
+      selectedSemester === "1" ? SHEET_SEMESTER1 : SHEET_SEMESTER2;
+    fetch(
+      `${endpoint}?action=semesterRecap&kelas=${
+        selectedKelas === "Semua" ? "" : selectedKelas
+      }&semester=${selectedSemester}`
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          setRecapData(data.data || []);
+        } else {
+          alert(
+            `❌ Gagal memuat data rekap ${
+              selectedSemester === "1" ? "Semester 1" : "Semester 2"
+            }: ${data.message}`
+          );
+          setRecapData([]);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetch:", error);
+        alert(
+          `❌ Gagal memuat data rekap ${
+            selectedSemester === "1" ? "Semester 1" : "Semester 2"
+          }. Cek console untuk detail.`
+        );
+        setRecapData([]);
+        setLoading(false);
+      });
+
+    fetch(`${endpoint}?action=schoolData`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && data.data && data.data.length > 0) {
+          setSchoolData(data.data[0]);
+        } else {
+          setSchoolData(null);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching school data:", error);
+        alert("❌ Gagal memuat data sekolah. Cek console untuk detail.");
+      });
+  }, [selectedKelas, selectedSemester]);
+
+  const filteredRecapData = React.useMemo(() => {
+    if (selectedKelas === "Semua") {
+      return recapData;
+    }
+    return recapData.filter(
+      (item) => String(item.kelas).trim() === selectedKelas
+    );
+  }, [recapData, selectedKelas]);
+
+  const getStatusSummary = (): {
+    Hadir: number;
+    Izin: number;
+    Sakit: number;
+    Alpha: number;
+  } => {
+    const summary = { Hadir: 0, Izin: 0, Sakit: 0, Alpha: 0 };
+    filteredRecapData.forEach((item) => {
+      summary.Hadir += item.hadir || 0;
+      summary.Alpha += item.alpa || 0;
+      summary.Izin += item.izin || 0;
+      summary.Sakit += item.sakit || 0;
+    });
+    return summary;
+  };
+
+  const statusSummary = getStatusSummary();
+
+  const downloadExcel = () => {
+    const headers = [
+      "Nama",
+      "Kelas",
+      "Hadir",
+      "Alpha",
+      "Izin",
+      "Sakit",
+      "% Hadir",
+    ];
+    const data = [
+      headers,
+      ...filteredRecapData.map((item) => [
+        item.nama || "N/A",
+        item.kelas || "N/A",
+        item.hadir || 0,
+        item.alpa || 0,
+        item.izin || 0,
+        item.sakit || 0,
+        item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
+      ]),
+      [
+        "TOTAL",
+        "",
+        statusSummary.Hadir,
+        statusSummary.Alpha,
+        statusSummary.Izin,
+        statusSummary.Sakit,
+        "",
+      ],
+      [
+        "PERSEN",
+        "",
+        `${(
+          (statusSummary.Hadir /
+            (statusSummary.Hadir +
+              statusSummary.Alpha +
+              statusSummary.Izin +
+              statusSummary.Sakit)) *
+          100
+        ).toFixed(2)}%`,
+        `${(
+          (statusSummary.Alpha /
+            (statusSummary.Hadir +
+              statusSummary.Alpha +
+              statusSummary.Izin +
+              statusSummary.Sakit)) *
+          100
+        ).toFixed(2)}%`,
+        `${(
+          (statusSummary.Izin /
+            (statusSummary.Hadir +
+              statusSummary.Alpha +
+              statusSummary.Izin +
+              statusSummary.Sakit)) *
+          100
+        ).toFixed(2)}%`,
+        `${(
+          (statusSummary.Sakit /
+            (statusSummary.Hadir +
+              statusSummary.Alpha +
+              statusSummary.Izin +
+              statusSummary.Sakit)) *
+          100
+        ).toFixed(2)}%`,
+        "",
+      ],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws["!cols"] = headers.map(() => ({ wch: 15 }));
+    const headerStyle = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: "FFFF00" } },
+      alignment: { horizontal: "center" },
+    };
+    const totalStyle = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: "D3D3D3" } },
+      alignment: { horizontal: "center" },
+    };
+    const percentStyle = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: "D3D3D3" } },
+      alignment: { horizontal: "center" },
+    };
+    headers.forEach((header, index) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
+      ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
+    });
+    const totalRow = filteredRecapData.length + 1;
+    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+      const cellAddress = `${col}${totalRow}`;
+      ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
+    });
+    const percentRow = filteredRecapData.length + 2;
+    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+      const cellAddress = `${col}${percentRow}`;
+      ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap Semester");
+    const date = new Date()
+      .toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(/ /g, "_")
+      .replace(/:/g, "-");
+    const fileName = `Rekap_Semester_${selectedSemester}_${selectedKelas}_${date}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const lineSpacing = 5;
+    let currentY = margin;
+
+    doc.setFont("Times", "roman");
+
+    const title = `REKAP ABSENSI SISWA KELAS ${selectedKelas} SEMESTER ${selectedSemester} 2025`;
+    doc.setFontSize(14);
+    doc.setFont("Times", "bold");
+    doc.text(title, pageWidth / 2, currentY, { align: "center" });
+    currentY += 10;
+
+    const headers = [
+      "Nama",
+      "Kelas",
+      "Hadir",
+      "Alpha",
+      "Izin",
+      "Sakit",
+      "% Hadir",
+    ];
+    const body = filteredRecapData.map((item) => [
+      item.nama || "N/A",
+      item.kelas || "N/A",
+      item.hadir || 0,
+      item.alpa || 0,
+      item.izin || 0,
+      item.sakit || 0,
+      item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
+    ]);
+
+    const totalRow = [
+      "TOTAL",
+      "",
+      statusSummary.Hadir,
+      statusSummary.Alpha,
+      statusSummary.Izin,
+      statusSummary.Sakit,
+      "",
+    ];
+    const percentRow = [
+      "PERSEN",
+      "",
+      `${(
+        (statusSummary.Hadir /
+          (statusSummary.Hadir +
+            statusSummary.Alpha +
+            statusSummary.Izin +
+            statusSummary.Sakit)) *
+        100
+      ).toFixed(2)}%`,
+      `${(
+        (statusSummary.Alpha /
+          (statusSummary.Hadir +
+            statusSummary.Alpha +
+            statusSummary.Izin +
+            statusSummary.Sakit)) *
+        100
+      ).toFixed(2)}%`,
+      `${(
+        (statusSummary.Izin /
+          (statusSummary.Hadir +
+            statusSummary.Alpha +
+            statusSummary.Izin +
+            statusSummary.Sakit)) *
+        100
+      ).toFixed(2)}%`,
+      `${(
+        (statusSummary.Sakit /
+          (statusSummary.Hadir +
+            statusSummary.Alpha +
+            statusSummary.Izin +
+            statusSummary.Sakit)) *
+        100
+      ).toFixed(2)}%`,
+      "",
+    ];
+
+    autoTable(doc, {
+      head: [headers],
+      body: [...body, totalRow, percentRow],
+      startY: currentY,
+      styles: { font: "Times", fontSize: 8, cellPadding: 2 },
+      headStyles: {
+        fillColor: [255, 255, 0],
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 20 },
+        5: { cellWidth: 20 },
+        6: { cellWidth: 20 },
+      },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    if (schoolData) {
+      doc.setFontSize(10);
+      doc.setFont("Times", "roman");
+
+      const formattedDate = new Date(selectedDate).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+      const placeDateText = `${placeName}, ${formattedDate}`;
+      const rightColumnX = pageWidth - margin - 50;
+      doc.text(placeDateText, rightColumnX + 25, currentY, { align: "center" });
+      currentY += 5;
+
+      const principalText = [
+        "Kepala Sekolah,",
+        "",
+        "",
+        `( ${schoolData.namaKepsek || "N/A"} )`,
+        `NIP: ${schoolData.nipKepsek || "N/A"}`,
+      ];
+      const teacherText = [
+        "Guru Kelas,",
+        "",
+        "",
+        `( ${schoolData.namaGuru || "N/A"} )`,
+        `NIP: ${schoolData.nipGuru || "N/A"}`,
+      ];
+
+      const signatureWidth = 50;
+      const signatureHeight = 20;
+      const leftColumnX = margin;
+
+      if (schoolData.ttdKepsek) {
+        doc.addImage(
+          schoolData.ttdKepsek,
+          "PNG",
+          leftColumnX,
+          currentY,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
+        align: "center",
+      });
+      principalText.slice(1).forEach((line, index) => {
+        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
+          align: "center",
+        });
+      });
+
+      if (schoolData.ttdGuru) {
+        doc.addImage(
+          schoolData.ttdGuru,
+          "PNG",
+          rightColumnX,
+          currentY,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
+      teacherText.slice(1).forEach((line, index) => {
+        doc.text(
+          line,
+          rightColumnX + 25,
+          currentY + (index + 2) * lineSpacing,
+          { align: "center" }
+        );
+      });
+    } else {
+      doc.setFontSize(10);
+      doc.text("Data sekolah tidak tersedia.", margin, currentY);
+    }
+
+    const date = new Date()
+      .toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(/ /g, "_")
+      .replace(/:/g, "-");
+    const fileName = `Rekap_Semester_${selectedSemester}_${selectedKelas}_${date}.pdf`;
+    doc.save(fileName);
+  };
+
   return (
-    <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
-      <style>
-        {`
-          @keyframes pulse {
-            0% {
-              transform: scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: scale(1.2);
-              opacity: 0.7;
-            }
-            100% {
-              transform: scale(1);
-              opacity: 1;
-            }
-          }
-          .animate-pulse-custom {
-            animation: pulse 2s infinite;
-          }
-        `}
-      </style>
-      <img
-        src="\images\IMG_20250518_064410.png"
-        alt="Logo Aplikasi"
-        className="w-52 h-70 mb-4 animate-pulse-custom" //Pengaturan ukuran logo
-      />
-      <p className="text-gray-800 text-lg font-semibold">Tunggu Sebentar</p>
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
+          📊 Rekap Absensi Semester
+        </h2>
+
+        <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
+            <select
+              value={selectedKelas}
+              onChange={(e) => setSelectedKelas(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {uniqueClasses.map((kelas) => (
+                <option key={kelas} value={kelas}>
+                  {kelas}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Pilih Semester</p>
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value as "1" | "2")}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              <option value="1">Semester 1</option>
+              <option value="2">Semester 2</option>
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
+            <input
+              type="text"
+              value={placeName}
+              onChange={(e) => setPlaceName(e.target.value)}
+              placeholder="Masukkan nama tempat"
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+            <div className="text-green-600 font-bold text-lg">
+              {statusSummary.Hadir}
+            </div>
+            <div className="text-green-700 text-sm">Hadir</div>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+            <div className="text-yellow-600 font-bold text-lg">
+              {statusSummary.Izin}
+            </div>
+            <div className="text-yellow-700 text-sm">Izin</div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+            <div className="text-blue-600 font-bold text-lg">
+              {statusSummary.Sakit}
+            </div>
+            <div className="text-blue-700 text-sm">Sakit</div>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+            <div className="text-red-600 font-bold text-lg">
+              {statusSummary.Alpha}
+            </div>
+            <div className="text-red-700 text-sm">Alpha</div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Memuat rekap...</p>
+          </div>
+        ) : filteredRecapData.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">
+              Tidak ada data rekap untuk Semester {selectedSemester} kelas{" "}
+              {selectedKelas}.
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              Coba pilih kelas atau semester lain.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                      Nama
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
+                      Kelas
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Hadir
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Alpha
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Izin
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      Sakit
+                    </th>
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      % Hadir
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecapData.map((item, index) => (
+                    <tr
+                      key={index}
+                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {item.nama || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
+                        {item.kelas || "N/A"}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.hadir || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.alpa || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.izin || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.sakit || 0}
+                      </td>
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {item.persenHadir !== undefined
+                          ? `${item.persenHadir}%`
+                          : "N/A"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 flex gap-4 justify-center">
+              <button
+                onClick={downloadExcel}
+                className="px-1 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+              >
+                📥 Download Excel
+              </button>
+              <button
+                onClick={downloadPDF}
+                className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                📄 Download PDF
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -2226,10 +2825,10 @@ const StudentAttendanceApp: React.FC = () => {
     | "graph"
     | "delete"
     | "history"
+    | "semesterRecap"
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -2280,18 +2879,8 @@ const StudentAttendanceApp: React.FC = () => {
   };
 
   useEffect(() => {
-    // Simulasi loading selama 3 detik
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      fetchStudents();
-    }, 3000);
-
-    return () => clearTimeout(timer);
+    fetchStudents();
   }, []);
-
-  if (isLoading) {
-    return <SplashScreen />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -2314,7 +2903,8 @@ const StudentAttendanceApp: React.FC = () => {
           { tab: "schoolData", label: "🏫 Data Sekolah" },
           { tab: "studentData", label: "👥 Data Siswa" },
           { tab: "attendance", label: "📋 Absensi" },
-          { tab: "recap", label: "📊 Rekap" },
+          { tab: "recap", label: "📊 Rekap Bulanan" },
+          { tab: "semesterRecap", label: "📚 Rekap Semester" },
           { tab: "graph", label: "📈 Grafik" },
           { tab: "delete", label: "⚠️ Hapus" },
           { tab: "history", label: "📜 Riwayat Absen" },
@@ -2331,6 +2921,7 @@ const StudentAttendanceApp: React.FC = () => {
                   | "graph"
                   | "delete"
                   | "history"
+                  | "semesterRecap"
               );
               setIsSidebarOpen(false);
             }}
@@ -2401,6 +2992,9 @@ const StudentAttendanceApp: React.FC = () => {
               uniqueClasses={uniqueClasses}
               onRefresh={fetchStudents}
             />
+          )}
+          {activeTab === "semesterRecap" && (
+            <SemesterRecapTab uniqueClasses={uniqueClasses} />
           )}
         </div>
       </main>
