@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxdmk95BHhPRedaP5KfSseBAhgF4UbIYAbiNHcWjIIHDv0XDTdKueDn-cju7P-xJPnt/exec";
+  "https://script.google.com/macros/s/AKfycbxclPA5wZylqHXr9sB2bH9sNo5lSUp2nM_9fXXf5uNyaAo76X3Vi860VKtBwvADXUVN/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -413,6 +413,12 @@ const StudentDataTab: React.FC<{
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
 
+  // State untuk bulk import
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkNisn, setBulkNisn] = useState("");
+  const [bulkNama, setBulkNama] = useState("");
+  const [bulkKelas, setBulkKelas] = useState("");
+
   const handleSubmit = () => {
     if (!nisn || !nama || !kelas) {
       alert("⚠️ Semua field wajib diisi!");
@@ -438,6 +444,85 @@ const StudentDataTab: React.FC<{
         onRefresh();
       })
       .catch(() => alert("❌ Gagal menambahkan siswa."));
+  };
+
+  const handleBulkImport = () => {
+    // Validasi input
+    if (!bulkNisn.trim() || !bulkNama.trim() || !bulkKelas.trim()) {
+      alert("⚠️ Semua field data massal wajib diisi!");
+      return;
+    }
+
+    // Parse data dari textarea
+    const nisnLines = bulkNisn
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim());
+    const namaLines = bulkNama
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim());
+    const kelasLines = bulkKelas
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim());
+
+    // Validasi jumlah baris harus sama
+    if (
+      nisnLines.length !== namaLines.length ||
+      namaLines.length !== kelasLines.length
+    ) {
+      alert("⚠️ Jumlah baris data NISN, Nama, dan Kelas harus sama!");
+      return;
+    }
+
+    if (nisnLines.length === 0) {
+      alert("⚠️ Tidak ada data yang valid untuk diimport!");
+      return;
+    }
+
+    // Konfirmasi sebelum import
+    if (!confirm(`Akan menambahkan ${nisnLines.length} siswa. Lanjutkan?`)) {
+      return;
+    }
+
+    // Prepare data untuk bulk import
+    const students = nisnLines.map((nisn, index) => ({
+      nisn: nisn.trim(),
+      nama: namaLines[index].trim(),
+      kelas: kelasLines[index].trim(),
+    }));
+
+    // Kirim dalam satu request
+    fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "bulk_siswa",
+        students: students,
+      }),
+    })
+      .then(() => {
+        // Karena mode no-cors, kita tidak bisa membaca response
+        // Jadi kita anggap berhasil dan biarkan user refresh manual jika diperlukan
+        alert(
+          `✅ Data massal berhasil dikirim! Total: ${students.length} siswa`
+        );
+
+        // Reset form dan refresh data
+        setBulkNisn("");
+        setBulkNama("");
+        setBulkKelas("");
+        setShowBulkImport(false);
+        onRefresh();
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert(
+          "❌ Terjadi kesalahan saat import data massal. Pastikan:\n1. URL endpoint sudah benar\n2. Google Apps Script sudah di-deploy\n3. Koneksi internet stabil"
+        );
+      });
   };
 
   const handleEditStudent = (student: Student) => {
@@ -506,6 +591,7 @@ const StudentDataTab: React.FC<{
 
   return (
     <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      {/* Form Tambah Siswa Tunggal */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 className="text-xl font-bold mb-4 text-center text-blue-600">
           Tambah Data Siswa
@@ -533,16 +619,106 @@ const StudentDataTab: React.FC<{
             className="w-full border border-gray-300 px-4 py-2 rounded-lg"
           />
         </div>
-        <div className="text-center">
+        <div className="flex justify-center gap-4">
           <button
             onClick={handleSubmit}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
           >
             ➕ Tambah Siswa
           </button>
+          <button
+            onClick={() => setShowBulkImport(!showBulkImport)}
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+          >
+            📋 Tambah Data Massal
+          </button>
         </div>
       </div>
 
+      {/* Form Bulk Import */}
+      {showBulkImport && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-2 border-green-200">
+          <h2 className="text-xl font-bold mb-4 text-center text-green-600">
+            Import Data Massal
+          </h2>
+          <div className="mb-4 p-4 bg-green-50 rounded-lg">
+            <p className="text-sm text-green-700 mb-2">
+              <strong>Cara penggunaan:</strong>
+            </p>
+            <p className="text-sm text-green-600">
+              1. Copy data dari Excel (pilih kolom NISN, Nama, dan Kelas secara
+              terpisah)
+              <br />
+              2. Paste ke masing-masing kotak di bawah ini
+              <br />
+              3. Pastikan jumlah baris di setiap kolom sama
+              <br />
+              4. Klik "Kirim Data Massal"
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                NISN (satu per baris)
+              </label>
+              <textarea
+                placeholder="34534534&#10;56565656&#10;12345678"
+                value={bulkNisn}
+                onChange={(e) => setBulkNisn(e.target.value)}
+                className="w-full border border-gray-300 px-4 py-2 rounded-lg h-32 resize-none"
+                rows={6}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nama (satu per baris)
+              </label>
+              <textarea
+                placeholder="Andika&#10;Alisa&#10;Budi"
+                value={bulkNama}
+                onChange={(e) => setBulkNama(e.target.value)}
+                className="w-full border border-gray-300 px-4 py-2 rounded-lg h-32 resize-none"
+                rows={6}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Kelas (satu per baris)
+              </label>
+              <textarea
+                placeholder="3&#10;4&#10;5"
+                value={bulkKelas}
+                onChange={(e) => setBulkKelas(e.target.value)}
+                className="w-full border border-gray-300 px-4 py-2 rounded-lg h-32 resize-none"
+                rows={6}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={handleBulkImport}
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+            >
+              📤 Kirim Data Massal
+            </button>
+            <button
+              onClick={() => {
+                setBulkNisn("");
+                setBulkNama("");
+                setBulkKelas("");
+                setShowBulkImport(false);
+              }}
+              className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium"
+            >
+              ❌ Batal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pencarian Siswa */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Pencarian Siswa
@@ -571,6 +747,7 @@ const StudentDataTab: React.FC<{
         </div>
       </div>
 
+      {/* Daftar Siswa */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Daftar Siswa ({filteredStudents.length})
