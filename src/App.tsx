@@ -2991,6 +2991,43 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
   );
 };
 
+// Komponen SplashScreen
+const SplashScreen: React.FC = () => {
+  return (
+    <div className="fixed inset-0 bg-white flex flex-col items-center justify-center z-50">
+      <style>
+        {`
+          @keyframes pulse {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.2);
+              opacity: 0.7;
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          .animate-pulse-custom {
+            animation: pulse 2s infinite;
+          }
+        `}
+      </style>
+      <img
+        src="\images\IMG_20250518_064410.png"
+        alt="Logo Aplikasi"
+        className="w-52 h-70 mb-4 animate-pulse-custom" //Pengaturan ukuran logo
+      />
+      <p className="text-gray-800 text-lg font-semibold mt-6">
+        Tunggu Sebentar
+      </p>
+    </div>
+  );
+};
+
 const StudentAttendanceApp: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [uniqueClasses, setUniqueClasses] = useState<string[]>(["Semua"]);
@@ -3006,6 +3043,8 @@ const StudentAttendanceApp: React.FC = () => {
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Add the missing isLoading state
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = () => {
     fetch(endpoint)
@@ -3046,18 +3085,27 @@ const StudentAttendanceApp: React.FC = () => {
       });
   };
 
-  const handleRefresh = () => {
-    fetchStudents();
-    setRefreshTrigger((prev) => prev + 1);
-  };
-
   const handleRecapRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  useEffect(() => {
+  const handleRefresh = () => {
     fetchStudents();
+  };
+
+  useEffect(() => {
+    // Simulasi loading selama 3 detik
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+      fetchStudents();
+    }, 3000);
+
+    return () => clearTimeout(timer);
   }, []);
+
+  if (isLoading) {
+    return <SplashScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -3123,6 +3171,15 @@ const StudentAttendanceApp: React.FC = () => {
         >
           {isSidebarOpen ? "✖️ Tutup Menu" : "☰ Buka Menu"}
         </button>
+      </div>
+
+      {/* Logo di pojok kanan atas */}
+      <div className="absolute top-4 right-4 z-50">
+        <img
+          src="\images\Untitled design (6).png"
+          alt="Logo Aplikasi"
+          className="w-16 h-16"
+        />
       </div>
 
       {/* Main Content */}
