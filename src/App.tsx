@@ -3003,6 +3003,10 @@ const ClearDataTab: React.FC = () => {
 
     setIsClearing(true);
 
+    // Buat AbortController untuk timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 detik timeout
+
     try {
       console.log("Mengirim request ke:", endpoint);
       console.log("Payload:", {
@@ -3019,9 +3023,12 @@ const ClearDataTab: React.FC = () => {
           type: "deleteAllDataDataSiswanAbsensi",
           sheet: "both",
         }),
-        // Tambahkan timeout untuk mencegah hanging
-        signal: AbortSignal.timeout(30000), // Timeout setelah 30 detik (lebih lama untuk operasi delete)
+        // Gunakan AbortController untuk timeout
+        signal: controller.signal,
       });
+
+      // Clear timeout jika request berhasil
+      clearTimeout(timeoutId);
 
       console.log("Status respons:", response.status);
 
@@ -3082,12 +3089,17 @@ const ClearDataTab: React.FC = () => {
             }. Periksa koneksi jaringan atau endpoint.`
           );
         }
-      } else if (errorMessage.includes("Timeout")) {
+      } else if (
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("timeout")
+      ) {
         alert("❌ Gagal menghapus data: Permintaan timeout. Coba lagi nanti.");
       } else {
         alert(`❌ Gagal menghapus data: ${errorMessage}. Detail di console.`);
       }
     } finally {
+      // Pastikan timeout dibersihkan
+      clearTimeout(timeoutId);
       setIsClearing(false);
     }
   };
