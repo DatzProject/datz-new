@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxclPA5wZylqHXr9sB2bH9sNo5lSUp2nM_9fXXf5uNyaAo76X3Vi860VKtBwvADXUVN/exec";
+  "https://script.google.com/macros/s/AKfycbxnCb1Lqd1cP7p8ZrOFdT2lWwhvhIJCpjFIsrTGyVXLofNwtHm1rfDRpUU_qt4U2UEN/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -412,12 +412,28 @@ const StudentDataTab: React.FC<{
   const [kelas, setKelas] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [isPolling, setIsPolling] = useState<boolean>(true);
 
   // State untuk bulk import
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkNisn, setBulkNisn] = useState("");
   const [bulkNama, setBulkNama] = useState("");
   const [bulkKelas, setBulkKelas] = useState("");
+
+  // Polling effect untuk memeriksa pembaruan data
+  useEffect(() => {
+    if (!isPolling) return;
+
+    const intervalId = setInterval(() => {
+      console.log("Polling data siswa...");
+      onRefresh(); // Memanggil fungsi onRefresh dari parent untuk memperbarui data
+    }, 1000); // Polling setiap 1 detik
+
+    return () => {
+      console.log("Menghentikan polling");
+      clearInterval(intervalId);
+    };
+  }, [isPolling, onRefresh]);
 
   const handleSubmit = () => {
     if (!nisn || !nama || !kelas) {
@@ -2053,57 +2069,6 @@ const GraphTab: React.FC<{
   );
 };
 
-const DeleteDataTab: React.FC = () => {
-  const handleDeleteAllAttendance = () => {
-    if (
-      confirm(
-        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
-      )
-    ) {
-      fetch(endpoint, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "deleteAllAttendance",
-          sheetName: "absensi",
-        }),
-      })
-        .then(() => {
-          alert(
-            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
-          );
-        })
-        .catch(() =>
-          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
-        );
-    }
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-red-700 mb-6">
-          ⚠️ Hapus Data Absensi
-        </h2>
-        <p className="text-center text-gray-600 mb-6">
-          Fitur ini akan menghapus semua data absensi dari sheet 'absensi' di
-          Google Sheets, tetapi header akan tetap dipertahankan. Gunakan dengan
-          hati-hati!
-        </p>
-        <div className="text-center">
-          <button
-            onClick={handleDeleteAllAttendance}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
-          >
-            🗑️ Hapus Semua Data Absensi
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const AttendanceHistoryTab: React.FC<{
   students: Student[];
   uniqueClasses: string[];
@@ -2135,7 +2100,6 @@ const AttendanceHistoryTab: React.FC<{
       .then((data) => {
         if (data.success) {
           const newData = data.data || [];
-          // Gabungkan perubahan lokal dari editedRecords ke data baru
           const updatedData = newData.map((record: AttendanceHistory) => {
             const key = `${record.tanggal}_${record.nisn}`;
             return {
@@ -2172,7 +2136,6 @@ const AttendanceHistoryTab: React.FC<{
       ...prev,
       [key]: newStatus,
     }));
-    // Perbarui status langsung di attendanceData untuk refleksi UI
     setAttendanceData((prev) =>
       prev.map((item) =>
         item.tanggal === record.tanggal && item.nisn === record.nisn
@@ -2180,6 +2143,35 @@ const AttendanceHistoryTab: React.FC<{
           : item
       )
     );
+  };
+
+  const handleDeleteAllAttendance = () => {
+    if (
+      confirm(
+        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
+      )
+    ) {
+      fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deleteAllAttendance",
+          sheetName: "absensi",
+        }),
+      })
+        .then(() => {
+          alert(
+            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
+          );
+          setAttendanceData([]);
+          setEditedRecords({});
+          onRefresh();
+        })
+        .catch(() =>
+          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
+        );
+    }
   };
 
   const filteredStudents = React.useMemo(() => {
@@ -2387,16 +2379,22 @@ const AttendanceHistoryTab: React.FC<{
           </div>
         )}
 
-        {Object.keys(editedRecords).length > 0 && (
-          <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-col md:flex-row gap-4 justify-center">
+          {Object.keys(editedRecords).length > 0 && (
             <button
               onClick={saveChanges}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
             >
               💾 Simpan Perubahan
             </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={handleDeleteAllAttendance}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+          >
+            🗑️ Hapus Semua Data Absensi
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2991,6 +2989,140 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
   );
 };
 
+const ClearDataTab: React.FC = () => {
+  const [isClearing, setIsClearing] = useState<boolean>(false);
+
+  const handleClearData = async () => {
+    if (
+      !window.confirm(
+        "Yakin ingin menghapus semua data di sheet Absensi dan DataSiswa?\n\nHeader akan tetap dipertahankan. Tindakan ini tidak dapat dibatalkan."
+      )
+    ) {
+      return;
+    }
+
+    setIsClearing(true);
+
+    try {
+      console.log("Mengirim request ke:", endpoint);
+      console.log("Payload:", {
+        type: "deleteAllDataDataSiswanAbsensi",
+        sheet: "both",
+      });
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "deleteAllDataDataSiswanAbsensi",
+          sheet: "both",
+        }),
+        // Tambahkan timeout untuk mencegah hanging
+        signal: AbortSignal.timeout(30000), // Timeout setelah 30 detik (lebih lama untuk operasi delete)
+      });
+
+      console.log("Status respons:", response.status);
+
+      if (!response.ok) {
+        throw new Error(
+          `Server error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const jsonResponse = await response.json();
+      console.log("Respons JSON:", jsonResponse);
+
+      if (jsonResponse.success) {
+        alert(`✅ ${jsonResponse.message}`);
+      } else {
+        throw new Error(jsonResponse.message || "Gagal menghapus data");
+      }
+    } catch (error) {
+      console.error("Error saat menghapus data:", error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan tidak diketahui";
+
+      // Penanganan spesifik untuk error CORS atau jaringan
+      if (
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.toLowerCase().includes("cors") ||
+        errorMessage.includes("NetworkError")
+      ) {
+        console.warn(
+          "Mendeteksi masalah CORS atau jaringan, mencoba fallback..."
+        );
+        try {
+          await fetch(endpoint, {
+            method: "POST",
+            mode: "no-cors", // Fallback untuk CORS
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type: "deleteAllDataDataSiswanAbsensi",
+              sheet: "both",
+            }),
+          });
+          console.log("Fallback request dikirim (no-cors)");
+          alert(
+            "✅ Data berhasil dihapus (CORS fallback). Periksa spreadsheet untuk memastikan."
+          );
+        } catch (fallbackError) {
+          console.error("Fallback error:", fallbackError);
+          alert(
+            `❌ Gagal menghapus data: ${
+              fallbackError instanceof Error
+                ? fallbackError.message
+                : "Unknown error"
+            }. Periksa koneksi jaringan atau endpoint.`
+          );
+        }
+      } else if (errorMessage.includes("Timeout")) {
+        alert("❌ Gagal menghapus data: Permintaan timeout. Coba lagi nanti.");
+      } else {
+        alert(`❌ Gagal menghapus data: ${errorMessage}. Detail di console.`);
+      }
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto pb-20">
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-red-700 mb-6">
+          🗑️ Hapus Data
+        </h2>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-red-700 font-semibold mb-2">Peringatan:</p>
+          <p className="text-sm text-red-600">
+            Tindakan ini akan menghapus semua data di sheet Absensi dan
+            DataSiswa (kecuali header). Tindakan ini tidak dapat dibatalkan.
+          </p>
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={handleClearData}
+            disabled={isClearing}
+            className={`px-6 py-2 rounded-lg font-medium text-white ${
+              isClearing
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-red-600 hover:bg-red-700"
+            } transition-colors duration-200`}
+          >
+            {isClearing ? "Memproses..." : "🗑️ Hapus Semua Data"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Komponen SplashScreen
 const SplashScreen: React.FC = () => {
   return (
@@ -3037,13 +3169,12 @@ const StudentAttendanceApp: React.FC = () => {
     | "attendance"
     | "recap"
     | "graph"
-    | "delete"
     | "history"
     | "semesterRecap"
+    | "clearData"
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Add the missing isLoading state
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchStudents = () => {
@@ -3131,8 +3262,8 @@ const StudentAttendanceApp: React.FC = () => {
           { tab: "recap", label: "📊 Rekap Bulanan" },
           { tab: "semesterRecap", label: "📚 Rekap Semester" },
           { tab: "graph", label: "📈 Grafik" },
-          { tab: "delete", label: "⚠️ Hapus" },
           { tab: "history", label: "📜 Riwayat Absen" },
+          { tab: "clearData", label: "🗑️ Hapus Data" },
         ].map(({ tab, label }) => (
           <button
             key={tab}
@@ -3144,17 +3275,15 @@ const StudentAttendanceApp: React.FC = () => {
                   | "attendance"
                   | "recap"
                   | "graph"
-                  | "delete"
                   | "history"
                   | "semesterRecap"
+                  | "clearData"
               );
               setIsSidebarOpen(false);
             }}
             className={`w-full text-left py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               activeTab === tab
-                ? tab === "delete"
-                  ? "bg-red-600 text-white"
-                  : "bg-blue-600 text-white"
+                ? "bg-blue-600 text-white"
                 : "text-gray-600 hover:bg-gray-100"
             }`}
           >
@@ -3219,7 +3348,6 @@ const StudentAttendanceApp: React.FC = () => {
             />
           )}
           {activeTab === "graph" && <GraphTab uniqueClasses={uniqueClasses} />}
-          {activeTab === "delete" && <DeleteDataTab />}
           {activeTab === "history" && (
             <AttendanceHistoryTab
               students={students}
@@ -3230,6 +3358,7 @@ const StudentAttendanceApp: React.FC = () => {
           {activeTab === "semesterRecap" && (
             <SemesterRecapTab uniqueClasses={uniqueClasses} />
           )}
+          {activeTab === "clearData" && <ClearDataTab />}
         </div>
       </main>
     </div>
