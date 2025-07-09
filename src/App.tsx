@@ -412,28 +412,12 @@ const StudentDataTab: React.FC<{
   const [kelas, setKelas] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [isPolling, setIsPolling] = useState<boolean>(true);
 
   // State untuk bulk import
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkNisn, setBulkNisn] = useState("");
   const [bulkNama, setBulkNama] = useState("");
   const [bulkKelas, setBulkKelas] = useState("");
-
-  // Polling effect untuk memeriksa pembaruan data
-  useEffect(() => {
-    if (!isPolling) return;
-
-    const intervalId = setInterval(() => {
-      console.log("Polling data siswa...");
-      onRefresh(); // Memanggil fungsi onRefresh dari parent untuk memperbarui data
-    }, 1000); // Polling setiap 1 detik
-
-    return () => {
-      console.log("Menghentikan polling");
-      clearInterval(intervalId);
-    };
-  }, [isPolling, onRefresh]);
 
   const handleSubmit = () => {
     if (!nisn || !nama || !kelas) {
@@ -2989,19 +2973,58 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
   );
 };
 
-const ClearDataTab: React.FC = () => {
+const ClearDataTab: React.FC<{
+  onRefresh?: () => void;
+  onDataCleared?: () => void;
+}> = ({ onRefresh, onDataCleared }) => {
   const [isClearing, setIsClearing] = useState<boolean>(false);
+
+  const clearAllLocalData = () => {
+    // Hapus semua data dari localStorage
+    const keysToRemove = [
+      "students",
+      "studentData",
+      "dataSiswa",
+      "siswaData",
+      "studentList",
+      "daftarSiswa",
+    ];
+    keysToRemove.forEach((key) => {
+      localStorage.removeItem(key);
+    });
+
+    // Hapus semua data dari sessionStorage
+    sessionStorage.clear();
+
+    // Hapus semua data yang mungkin ada dengan prefix tertentu
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.includes("student") ||
+          key.includes("siswa") ||
+          key.includes("data"))
+      ) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    console.log("Semua data lokal berhasil dihapus");
+  };
 
   const handleClearData = async () => {
     if (
       !window.confirm(
-        "Yakin ingin menghapus semua data di sheet Absensi dan DataSiswa?\n\nHeader akan tetap dipertahankan. Tindakan ini tidak dapat dibatalkan."
+        "Yakin ingin menghapus semua data di sheet Absensi dan DataSiswa?\n\nHeader akan tetap dipertahankan. Data siswa di aplikasi juga akan dihapus. Tindakan ini tidak dapat dibatalkan."
       )
     ) {
       return;
     }
 
     setIsClearing(true);
+
+    // Langsung hapus data lokal dulu
+    clearAllLocalData();
 
     // Buat AbortController untuk timeout
     const controller = new AbortController();
@@ -3042,7 +3065,33 @@ const ClearDataTab: React.FC = () => {
       console.log("Respons JSON:", jsonResponse);
 
       if (jsonResponse.success) {
-        alert(`✅ ${jsonResponse.message}`);
+        // Pastikan data lokal benar-benar terhapus
+        clearAllLocalData();
+
+        // Trigger callback untuk parent component
+        if (onDataCleared) {
+          onDataCleared();
+        }
+
+        // Trigger event untuk memberitahu komponen lain bahwa data telah dihapus
+        window.dispatchEvent(new CustomEvent("dataCleared"));
+
+        // Trigger refresh untuk memuat ulang data dari server
+        if (onRefresh) {
+          onRefresh();
+        }
+
+        // Trigger event global untuk refresh
+        window.dispatchEvent(new CustomEvent("refreshData"));
+
+        alert(
+          `✅ ${jsonResponse.message}\n\nData siswa di aplikasi juga telah dihapus. Halaman akan dimuat ulang.`
+        );
+
+        // Reload halaman untuk memastikan semua komponen direset
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         throw new Error(jsonResponse.message || "Gagal menghapus data");
       }
@@ -3076,9 +3125,34 @@ const ClearDataTab: React.FC = () => {
             }),
           });
           console.log("Fallback request dikirim (no-cors)");
+
+          // Pastikan data lokal benar-benar terhapus untuk fallback
+          clearAllLocalData();
+
+          // Trigger callback untuk parent component
+          if (onDataCleared) {
+            onDataCleared();
+          }
+
+          // Trigger event untuk memberitahu komponen lain bahwa data telah dihapus
+          window.dispatchEvent(new CustomEvent("dataCleared"));
+
+          // Trigger refresh untuk memuat ulang data dari server
+          if (onRefresh) {
+            onRefresh();
+          }
+
+          // Trigger event global untuk refresh
+          window.dispatchEvent(new CustomEvent("refreshData"));
+
           alert(
-            "✅ Data berhasil dihapus (CORS fallback). Periksa spreadsheet untuk memastikan."
+            "✅ Data berhasil dihapus (CORS fallback). Data siswa di aplikasi juga telah dihapus. Halaman akan dimuat ulang."
           );
+
+          // Reload halaman untuk memastikan semua komponen direset
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
         } catch (fallbackError) {
           console.error("Fallback error:", fallbackError);
           alert(
@@ -3114,7 +3188,8 @@ const ClearDataTab: React.FC = () => {
           <p className="text-sm text-red-700 font-semibold mb-2">Peringatan:</p>
           <p className="text-sm text-red-600">
             Tindakan ini akan menghapus semua data di sheet Absensi dan
-            DataSiswa (kecuali header). Tindakan ini tidak dapat dibatalkan.
+            DataSiswa (kecuali header), serta data siswa yang tersimpan di
+            aplikasi. Tindakan ini tidak dapat dibatalkan.
           </p>
         </div>
         <div className="flex justify-center">
