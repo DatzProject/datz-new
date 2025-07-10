@@ -189,30 +189,24 @@ const SchoolDataTab: React.FC<{
 
   const handleClearKepsekSignature = () => {
     kepsekSigCanvas.current?.clear();
+    setTtdKepsek(""); // Clear the signature data
   };
 
   const handleClearGuruSignature = () => {
     guruSigCanvas.current?.clear();
+    setTtdGuru(""); // Clear the signature data
   };
 
   const handleSaveKepsekSignature = () => {
-    const signature = kepsekSigCanvas.current?.toDataURL("image/png");
-    if (signature && !kepsekSigCanvas.current?.isEmpty()) {
-      setTtdKepsek(signature);
-      setIsKepsekSigning(false);
-    } else {
-      alert("⚠️ Tanda tangan kepala sekolah kosong!");
-    }
+    const signature = kepsekSigCanvas.current?.toDataURL("image/png") || "";
+    setTtdKepsek(signature);
+    setIsKepsekSigning(false);
   };
 
   const handleSaveGuruSignature = () => {
-    const signature = guruSigCanvas.current?.toDataURL("image/png");
-    if (signature && !guruSigCanvas.current?.isEmpty()) {
-      setTtdGuru(signature);
-      setIsGuruSigning(false);
-    } else {
-      alert("⚠️ Tanda tangan guru kosong!");
-    }
+    const signature = guruSigCanvas.current?.toDataURL("image/png") || "";
+    setTtdGuru(signature);
+    setIsGuruSigning(false);
   };
 
   const handleStartKepsekSigning = () => {
@@ -1192,7 +1186,7 @@ const MonthlyRecapTab: React.FC<{
 }> = ({ onRefresh, uniqueClasses }) => {
   const [recapData, setRecapData] = useState<MonthlyRecap[]>([]);
   const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedBulan, setSelectedBulan] = useState<string>("Oktober");
+  const [selectedBulan, setSelectedBulan] = useState<string>("Januari");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
@@ -1544,14 +1538,14 @@ const MonthlyRecapTab: React.FC<{
         "Kepala Sekolah,",
         "",
         "",
-        `( ${schoolData.namaKepsek || "N/A"} )`,
+        schoolData.namaKepsek || "N/A",
         `NIP: ${schoolData.nipKepsek || "N/A"}`,
       ];
       const teacherText = [
         "Guru Kelas,",
         "",
         "",
-        `( ${schoolData.namaGuru || "N/A"} )`,
+        schoolData.namaGuru || "N/A",
         `NIP: ${schoolData.nipGuru || "N/A"}`,
       ];
 
@@ -1577,11 +1571,38 @@ const MonthlyRecapTab: React.FC<{
         align: "center",
       });
 
-      // Sisa teks (nama dan NIP) tetap pada posisi awal
+      // Sisa teks (nama dan NIP) dengan format bold dan underline untuk nama
       principalText.slice(1).forEach((line, index) => {
-        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
-          align: "center",
-        });
+        if (index === 2 && line !== "N/A") {
+          doc.setFont("Times", "bold");
+          doc.setDrawColor(0);
+          const textWidth = doc.getTextWidth(line);
+          const textX = leftColumnX + 25 - textWidth / 2;
+          doc.text(
+            line,
+            leftColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+          doc.line(
+            textX,
+            currentY + (index + 2) * lineSpacing + 1,
+            textX + textWidth,
+            currentY + (index + 2) * lineSpacing + 1
+          );
+          doc.setFont("Times", "roman");
+        } else {
+          doc.text(
+            line,
+            leftColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+        }
       });
 
       // Teacher signature and text
@@ -1599,14 +1620,38 @@ const MonthlyRecapTab: React.FC<{
       // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
       doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
 
-      // Sisa teks (nama dan NIP) tetap pada posisi awal
+      // Sisa teks (nama dan NIP) dengan format bold dan underline untuk nama
       teacherText.slice(1).forEach((line, index) => {
-        doc.text(
-          line,
-          rightColumnX + 25,
-          currentY + (index + 2) * lineSpacing,
-          { align: "center" }
-        );
+        if (index === 2 && line !== "N/A") {
+          doc.setFont("Times", "bold");
+          doc.setDrawColor(0);
+          const textWidth = doc.getTextWidth(line);
+          const textX = rightColumnX + 25 - textWidth / 2;
+          doc.text(
+            line,
+            rightColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+          doc.line(
+            textX,
+            currentY + (index + 2) * lineSpacing + 1,
+            textX + textWidth,
+            currentY + (index + 2) * lineSpacing + 1
+          );
+          doc.setFont("Times", "roman");
+        } else {
+          doc.text(
+            line,
+            rightColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+        }
       });
     } else {
       doc.setFontSize(10);
@@ -2753,14 +2798,14 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         "Kepala Sekolah,",
         "",
         "",
-        `( ${schoolData.namaKepsek || "N/A"} )`,
+        schoolData.namaKepsek || "N/A",
         `NIP: ${schoolData.nipKepsek || "N/A"}`,
       ];
       const teacherText = [
         "Guru Kelas,",
         "",
         "",
-        `( ${schoolData.namaGuru || "N/A"} )`,
+        schoolData.namaGuru || "N/A",
         `NIP: ${schoolData.nipGuru || "N/A"}`,
       ];
 
@@ -2782,9 +2827,36 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         align: "center",
       });
       principalText.slice(1).forEach((line, index) => {
-        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
-          align: "center",
-        });
+        if (index === 2 && line !== "N/A") {
+          doc.setFont("Times", "bold");
+          doc.setDrawColor(0);
+          const textWidth = doc.getTextWidth(line);
+          const textX = leftColumnX + 25 - textWidth / 2;
+          doc.text(
+            line,
+            leftColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+          doc.line(
+            textX,
+            currentY + (index + 2) * lineSpacing + 1,
+            textX + textWidth,
+            currentY + (index + 2) * lineSpacing + 1
+          );
+          doc.setFont("Times", "roman");
+        } else {
+          doc.text(
+            line,
+            leftColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+        }
       });
 
       if (schoolData.ttdGuru) {
@@ -2799,12 +2871,36 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       }
       doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
       teacherText.slice(1).forEach((line, index) => {
-        doc.text(
-          line,
-          rightColumnX + 25,
-          currentY + (index + 2) * lineSpacing,
-          { align: "center" }
-        );
+        if (index === 2 && line !== "N/A") {
+          doc.setFont("Times", "bold");
+          doc.setDrawColor(0);
+          const textWidth = doc.getTextWidth(line);
+          const textX = rightColumnX + 25 - textWidth / 2;
+          doc.text(
+            line,
+            rightColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+          doc.line(
+            textX,
+            currentY + (index + 2) * lineSpacing + 1,
+            textX + textWidth,
+            currentY + (index + 2) * lineSpacing + 1
+          );
+          doc.setFont("Times", "roman");
+        } else {
+          doc.text(
+            line,
+            rightColumnX + 25,
+            currentY + (index + 2) * lineSpacing,
+            {
+              align: "center",
+            }
+          );
+        }
       });
     } else {
       doc.setFontSize(10);
