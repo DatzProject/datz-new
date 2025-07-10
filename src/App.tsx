@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxnCb1Lqd1cP7p8ZrOFdT2lWwhvhIJCpjFIsrTGyVXLofNwtHm1rfDRpUU_qt4U2UEN/exec";
+  "https://script.google.com/macros/s/AKfycbzLFZFZ_kRxXNZzwOgzL5hz2ZpZG_p9ksmIsVmT4qRYUvfoqDBqflCjyVj-VpAzluRR/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -425,25 +425,35 @@ const StudentDataTab: React.FC<{
       return;
     }
 
+    // Pastikan semua data dikirim sebagai string/text
+    const studentData = {
+      type: "siswa",
+      sheet: "DataSiswa", // Spesifikasi sheet target
+      nisn: nisn.toString().trim(), // Konversi ke string dan trim whitespace
+      nama: nama.toString().trim(),
+      kelas: kelas.toString().trim(),
+    };
+
     fetch(endpoint, {
       method: "POST",
       mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "siswa",
-        nisn,
-        nama,
-        kelas,
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(studentData),
     })
       .then(() => {
-        alert("✅ Siswa berhasil ditambahkan!");
+        alert("✅ Siswa berhasil ditambahkan ke sheet DataSiswa!");
         setNisn("");
         setNama("");
         setKelas("");
         onRefresh();
       })
-      .catch(() => alert("❌ Gagal menambahkan siswa."));
+      .catch((error) => {
+        console.error("Error adding student:", error);
+        alert("❌ Gagal menambahkan siswa.");
+      });
   };
 
   const handleBulkImport = () => {
@@ -531,23 +541,33 @@ const StudentDataTab: React.FC<{
     const newClass = prompt("Edit kelas siswa:", student.kelas ?? undefined);
 
     if (newNisn && newName && newClass) {
+      // Pastikan data edit juga dalam format text
+      const editData = {
+        type: "edit",
+        sheet: "DataSiswa",
+        nisnLama: student.nisn ? student.nisn.toString().trim() : "",
+        nisnBaru: newNisn.toString().trim(),
+        nama: newName.toString().trim(),
+        kelas: newClass.toString().trim(),
+      };
+
       fetch(endpoint, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "edit",
-          nisnLama: student.nisn,
-          nisnBaru: newNisn,
-          nama: newName,
-          kelas: newClass,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(editData),
       })
         .then(() => {
-          alert("✅ Data siswa berhasil diperbarui");
+          alert("✅ Data siswa berhasil diperbarui di sheet DataSiswa");
           onRefresh();
         })
-        .catch(() => alert("❌ Gagal memperbarui data"));
+        .catch((error) => {
+          console.error("Error editing student:", error);
+          alert("❌ Gagal memperbarui data");
+        });
     }
   };
 
@@ -556,21 +576,32 @@ const StudentDataTab: React.FC<{
       alert("❌ NISN tidak valid untuk penghapusan.");
       return;
     }
+
     if (confirm("Yakin ingin menghapus siswa ini?")) {
+      // Pastikan NISN dikirim sebagai string
+      const deleteData = {
+        type: "delete",
+        sheet: "DataSiswa",
+        nisn: nisn.toString().trim(),
+      };
+
       fetch(endpoint, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "delete",
-          nisn: nisn,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(deleteData),
       })
         .then(() => {
-          alert("🗑️ Data siswa berhasil dihapus");
+          alert("🗑️ Data siswa berhasil dihapus dari sheet DataSiswa");
           onRefresh();
         })
-        .catch(() => alert("❌ Gagal menghapus siswa"));
+        .catch((error) => {
+          console.error("Error deleting student:", error);
+          alert("❌ Gagal menghapus siswa");
+        });
     }
   };
 
@@ -639,7 +670,7 @@ const StudentDataTab: React.FC<{
       {showBulkImport && (
         <div className="bg-white p-6 rounded-lg shadow-md mb-6 border-2 border-green-200">
           <h2 className="text-xl font-bold mb-4 text-center text-green-600">
-            Import Data Massal
+            Import Data Massal ke Sheet DataSiswa
           </h2>
           <div className="mb-4 p-4 bg-green-50 rounded-lg">
             <p className="text-sm text-green-700 mb-2">
@@ -654,6 +685,8 @@ const StudentDataTab: React.FC<{
               3. Pastikan jumlah baris di setiap kolom sama
               <br />
               4. Klik "Kirim Data Massal"
+              <br />
+              5. Data akan disimpan sebagai text di sheet DataSiswa
             </p>
           </div>
 
@@ -750,13 +783,13 @@ const StudentDataTab: React.FC<{
       {/* Daftar Siswa */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
-          Daftar Siswa ({filteredStudents.length})
+          Daftar Siswa dari Sheet DataSiswa ({filteredStudents.length})
         </h3>
         {filteredStudents.length === 0 ? (
           <p className="text-center text-gray-500 py-8">
             {searchQuery || selectedKelas !== "Semua"
               ? "Tidak ada siswa yang cocok dengan pencarian atau filter kelas."
-              : "Belum ada data siswa."}
+              : "Belum ada data siswa di sheet DataSiswa."}
           </p>
         ) : (
           <div className="space-y-3">
