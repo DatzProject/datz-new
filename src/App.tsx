@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbzheTx-rJf7SPbL6k8YeksA9PF4FeHjrzTQGj16TvZcT3sRknNBSHq_D2yL5nze1ukx/exec";
+  "https://script.google.com/macros/s/AKfycbzqBLmXp_9jEhn8rb0uXn4T64oU58dCVV3ipD82kNrL6rXGI78sg7q7n9pG7ROF3Y_Y/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -1290,6 +1290,7 @@ const MonthlyRecapTab: React.FC<{
 
   const downloadExcel = () => {
     const headers = [
+      "No",
       "Nama",
       "Kelas",
       "Hadir",
@@ -1300,7 +1301,8 @@ const MonthlyRecapTab: React.FC<{
     ];
     const data = [
       headers,
-      ...filteredRecapData.map((item) => [
+      ...filteredRecapData.map((item, index) => [
+        index + 1,
         item.nama || "N/A",
         item.kelas || "N/A",
         item.hadir || 0,
@@ -1310,6 +1312,7 @@ const MonthlyRecapTab: React.FC<{
         item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
       ]),
       [
+        "",
         "TOTAL",
         "",
         statusSummary.Hadir,
@@ -1319,6 +1322,7 @@ const MonthlyRecapTab: React.FC<{
         "",
       ],
       [
+        "",
         "PERSEN",
         "",
         `${(
@@ -1379,12 +1383,12 @@ const MonthlyRecapTab: React.FC<{
       ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
     });
     const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${totalRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
     });
     const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${percentRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
     });
@@ -1426,6 +1430,7 @@ const MonthlyRecapTab: React.FC<{
 
     // Table headers and data
     const headers = [
+      "No",
       "Nama",
       "Kelas",
       "Hadir",
@@ -1434,7 +1439,8 @@ const MonthlyRecapTab: React.FC<{
       "Sakit",
       "% Hadir",
     ];
-    const body = filteredRecapData.map((item) => [
+    const body = filteredRecapData.map((item, index) => [
+      index + 1,
       item.nama || "N/A",
       item.kelas || "N/A",
       item.hadir || 0,
@@ -1445,6 +1451,7 @@ const MonthlyRecapTab: React.FC<{
     ]);
 
     const totalRow = [
+      "",
       "TOTAL",
       "",
       statusSummary.Hadir,
@@ -1455,6 +1462,7 @@ const MonthlyRecapTab: React.FC<{
     ];
 
     const percentRow = [
+      "",
       "PERSEN",
       "",
       `${(
@@ -1504,13 +1512,14 @@ const MonthlyRecapTab: React.FC<{
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 20 },
+        0: { cellWidth: 15 },
+        1: { cellWidth: 45 },
         2: { cellWidth: 20 },
         3: { cellWidth: 20 },
         4: { cellWidth: 20 },
         5: { cellWidth: 20 },
         6: { cellWidth: 20 },
+        7: { cellWidth: 20 },
       },
     });
 
@@ -1779,6 +1788,9 @@ const MonthlyRecapTab: React.FC<{
               <table className="min-w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      No
+                    </th>
                     <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Nama
                     </th>
@@ -1808,6 +1820,9 @@ const MonthlyRecapTab: React.FC<{
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {index + 1}
+                      </td>
                       <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.nama || "N/A"}
                       </td>
@@ -2630,6 +2645,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
   const downloadExcel = () => {
     const headers = [
+      "No",
       "Nama",
       "Kelas",
       "Hadir",
@@ -2640,7 +2656,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     ];
     const data = [
       headers,
-      ...filteredRecapData.map((item) => [
+      ...filteredRecapData.map((item, index) => [
+        index + 1,
         item.nama || "N/A",
         item.kelas || "N/A",
         item.hadir || 0,
@@ -2650,6 +2667,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
       ]),
       [
+        "",
         "TOTAL",
         "",
         statusSummary.Hadir,
@@ -2659,6 +2677,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         "",
       ],
       [
+        "",
         "PERSEN",
         "",
         `${(
@@ -2719,12 +2738,12 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
     });
     const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${totalRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
     });
     const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${percentRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
     });
@@ -2762,6 +2781,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     currentY += 10;
 
     const headers = [
+      "No",
       "Nama",
       "Kelas",
       "Hadir",
@@ -2770,7 +2790,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "Sakit",
       "% Hadir",
     ];
-    const body = filteredRecapData.map((item) => [
+    const body = filteredRecapData.map((item, index) => [
+      index + 1,
       item.nama || "N/A",
       item.kelas || "N/A",
       item.hadir || 0,
@@ -2781,6 +2802,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     ]);
 
     const totalRow = [
+      "",
       "TOTAL",
       "",
       statusSummary.Hadir,
@@ -2790,6 +2812,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "",
     ];
     const percentRow = [
+      "",
       "PERSEN",
       "",
       `${(
@@ -2839,13 +2862,14 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 20 },
+        0: { cellWidth: 15 },
+        1: { cellWidth: 45 },
         2: { cellWidth: 20 },
         3: { cellWidth: 20 },
         4: { cellWidth: 20 },
         5: { cellWidth: 20 },
         6: { cellWidth: 20 },
+        7: { cellWidth: 20 },
       },
     });
 
@@ -3094,6 +3118,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
               <table className="min-w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      No
+                    </th>
                     <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Nama
                     </th>
@@ -3123,6 +3150,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
+                      <td className="border border-gray-200 px-1 py-0.5 text-center text-sm text-gray-600">
+                        {index + 1}
+                      </td>
                       <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.nama || "N/A"}
                       </td>
