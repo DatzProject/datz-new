@@ -1601,7 +1601,7 @@ const MonthlyRecapTab: React.FC<{
       ];
 
       // Calculate width for signatures
-      const signatureWidth = 50;
+      const signatureWidth = 30;
       const signatureHeight = 20;
       const leftColumnX = margin;
 
@@ -1610,7 +1610,7 @@ const MonthlyRecapTab: React.FC<{
         doc.addImage(
           schoolData.ttdKepsek,
           "PNG",
-          leftColumnX,
+          leftColumnX + 10,
           currentY,
           signatureWidth,
           signatureHeight
@@ -1634,7 +1634,7 @@ const MonthlyRecapTab: React.FC<{
         doc.addImage(
           schoolData.ttdGuru,
           "PNG",
-          rightColumnX,
+          rightColumnX + 10,
           currentY,
           signatureWidth,
           signatureHeight
@@ -2880,7 +2880,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         `NIP: ${schoolData.nipGuru || "N/A"}`,
       ];
 
-      const signatureWidth = 50;
+      const signatureWidth = 30;
       const signatureHeight = 20;
       const leftColumnX = margin;
 
@@ -2888,7 +2888,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         doc.addImage(
           schoolData.ttdKepsek,
           "PNG",
-          leftColumnX,
+          leftColumnX + 10,
           currentY,
           signatureWidth,
           signatureHeight
@@ -2907,7 +2907,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         doc.addImage(
           schoolData.ttdGuru,
           "PNG",
-          rightColumnX,
+          rightColumnX + 10,
           currentY,
           signatureWidth,
           signatureHeight
