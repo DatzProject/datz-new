@@ -123,6 +123,7 @@ const SchoolDataTab: React.FC<{
   const [ttdKepsek, setTtdKepsek] = useState("");
   const [ttdGuru, setTtdGuru] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false); // Add isSaving state
   const [isKepsekSigning, setIsKepsekSigning] = useState(false);
   const [isGuruSigning, setIsGuruSigning] = useState(false);
   const kepsekSigCanvas = useRef<SignatureCanvas>(null);
@@ -162,6 +163,8 @@ const SchoolDataTab: React.FC<{
       return;
     }
 
+    setIsSaving(true); // Set saving state to true
+
     const data: SchoolData = {
       namaKepsek,
       nipKepsek,
@@ -183,8 +186,12 @@ const SchoolDataTab: React.FC<{
       .then(() => {
         alert("✅ Data sekolah berhasil diperbarui!");
         onRefresh();
+        setIsSaving(false); // Reset saving state on success
       })
-      .catch(() => alert("❌ Gagal memperbarui data sekolah."));
+      .catch(() => {
+        alert("❌ Gagal memperbarui data sekolah.");
+        setIsSaving(false); // Reset saving state on error
+      });
   };
 
   const handleClearKepsekSignature = () => {
@@ -250,6 +257,7 @@ const SchoolDataTab: React.FC<{
               value={namaKepsek}
               onChange={(e) => setNamaKepsek(e.target.value)}
               className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+              disabled={isSaving} // Disable input during saving
             />
             <input
               type="text"
@@ -257,6 +265,7 @@ const SchoolDataTab: React.FC<{
               value={nipKepsek}
               onChange={(e) => setNipKepsek(e.target.value)}
               className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+              disabled={isSaving} // Disable input during saving
             />
             <div className="mb-2">
               <p className="text-sm text-gray-500 mb-1">
@@ -268,7 +277,9 @@ const SchoolDataTab: React.FC<{
                   penColor="black"
                   canvasProps={{
                     className: `border border-gray-300 rounded-lg ${
-                      !isKepsekSigning ? "opacity-50 pointer-events-none" : ""
+                      !isKepsekSigning || isSaving
+                        ? "opacity-50 pointer-events-none"
+                        : ""
                     }`,
                     style: { width: "100%", height: "300px" },
                   }}
@@ -286,7 +297,10 @@ const SchoolDataTab: React.FC<{
                 {!isKepsekSigning && (
                   <button
                     onClick={handleStartKepsekSigning}
-                    className="px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm"
+                    className={`px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm ${
+                      isSaving ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={isSaving} // Disable button during saving
                   >
                     ✍️ Mulai Tanda Tangan
                   </button>
@@ -294,15 +308,22 @@ const SchoolDataTab: React.FC<{
                 {isKepsekSigning && (
                   <button
                     onClick={handleSaveKepsekSignature}
-                    className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                    className={`px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm ${
+                      isSaving ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={isSaving} // Disable button during saving
                   >
                     💾 Simpan Tanda Tangan
                   </button>
                 )}
                 <button
                   onClick={handleClearKepsekSignature}
-                  className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-                  disabled={!isKepsekSigning}
+                  className={`px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm ${
+                    !isKepsekSigning || isSaving
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                  disabled={!isKepsekSigning || isSaving} // Disable during saving
                 >
                   🗑️ Hapus TTD
                 </button>
@@ -324,6 +345,7 @@ const SchoolDataTab: React.FC<{
               value={namaGuru}
               onChange={(e) => setNamaGuru(e.target.value)}
               className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+              disabled={isSaving} // Disable input during saving
             />
             <input
               type="text"
@@ -331,6 +353,7 @@ const SchoolDataTab: React.FC<{
               value={nipGuru}
               onChange={(e) => setNipGuru(e.target.value)}
               className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
+              disabled={isSaving} // Disable input during saving
             />
             <div className="mb-2">
               <p className="text-sm text-gray-500 mb-1">Tanda Tangan Guru</p>
@@ -340,7 +363,9 @@ const SchoolDataTab: React.FC<{
                   penColor="black"
                   canvasProps={{
                     className: `border border-gray-300 rounded-lg ${
-                      !isGuruSigning ? "opacity-50 pointer-events-none" : ""
+                      !isGuruSigning || isSaving
+                        ? "opacity-50 pointer-events-none"
+                        : ""
                     }`,
                     style: { width: "100%", height: "300px" },
                   }}
@@ -358,7 +383,10 @@ const SchoolDataTab: React.FC<{
                 {!isGuruSigning && (
                   <button
                     onClick={handleStartGuruSigning}
-                    className="px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm"
+                    className={`px-4 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm ${
+                      isSaving ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={isSaving} // Disable button during saving
                   >
                     ✍️ Mulai Tanda Tangan
                   </button>
@@ -366,15 +394,22 @@ const SchoolDataTab: React.FC<{
                 {isGuruSigning && (
                   <button
                     onClick={handleSaveGuruSignature}
-                    className="px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                    className={`px-4 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm ${
+                      isSaving ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={isSaving} // Disable button during saving
                   >
                     💾 Simpan Tanda Tangan
                   </button>
                 )}
                 <button
                   onClick={handleClearGuruSignature}
-                  className="px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
-                  disabled={!isGuruSigning}
+                  className={`px-4 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm ${
+                    !isGuruSigning || isSaving
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                  disabled={!isGuruSigning || isSaving} // Disable during saving
                 >
                   🗑️ Hapus TTD
                 </button>
@@ -392,9 +427,14 @@ const SchoolDataTab: React.FC<{
         <div className="text-center">
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+            disabled={isSaving} // Disable button during saving
+            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+              isSaving
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            } text-white`}
           >
-            💾 Simpan Data Sekolah
+            {isSaving ? "⏳ Menyimpan..." : "💾 Simpan Data Sekolah"}
           </button>
         </div>
       </div>
@@ -1581,7 +1621,9 @@ const MonthlyRecapTab: React.FC<{
       });
       const placeDateText = `${placeName}, ${formattedDate}`;
       const rightColumnX = pageWidth - margin - 50; // Signature width is 50
-      doc.text(placeDateText, rightColumnX + 25, currentY, { align: "center" });
+      doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
+        align: "center",
+      });
       currentY += 5; // Keep close to "Guru Kelas"
 
       // Principal Section
@@ -1611,23 +1653,53 @@ const MonthlyRecapTab: React.FC<{
           schoolData.ttdKepsek,
           "PNG",
           leftColumnX + 10,
-          currentY,
+          currentY - 3,
           signatureWidth,
           signatureHeight
         );
       }
 
       // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
-      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
         align: "center",
       });
 
-      // Sisa teks (nama dan NIP) tetap pada posisi awal
-      principalText.slice(1).forEach((line, index) => {
-        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
-          align: "center",
-        });
+      // Kosong dan kosong
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
       });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama kepala sekolah dengan format bold dan underline
+      const principalName = schoolData.namaKepsek || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(principalName, leftColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      // Add underline to principal name
+      const principalNameText = principalName;
+      const textWidth = doc.getTextWidth(principalNameText);
+      const textX = leftColumnX + 25 - textWidth / 2;
+      doc.line(
+        textX,
+        currentY + 3.5 * lineSpacing + 1,
+        textX + textWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      // Reset font and add NIP
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipKepsek || "N/A"}`,
+        leftColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        {
+          align: "center",
+        }
+      );
 
       // Teacher signature and text
       if (schoolData.ttdGuru) {
@@ -1635,24 +1707,53 @@ const MonthlyRecapTab: React.FC<{
           schoolData.ttdGuru,
           "PNG",
           rightColumnX + 10,
-          currentY,
+          currentY - 5,
           signatureWidth,
           signatureHeight
         );
       }
 
       // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
-      doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
-
-      // Sisa teks (nama dan NIP) tetap pada posisi awal
-      teacherText.slice(1).forEach((line, index) => {
-        doc.text(
-          line,
-          rightColumnX + 25,
-          currentY + (index + 2) * lineSpacing,
-          { align: "center" }
-        );
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY - 2, {
+        align: "center",
       });
+
+      // Kosong dan kosong
+      doc.text("", rightColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama guru dengan format bold dan underline
+      const teacherName = schoolData.namaGuru || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(teacherName, rightColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      // Add underline to teacher name
+      const teacherNameText = teacherName;
+      const teacherTextWidth = doc.getTextWidth(teacherNameText);
+      const teacherTextX = rightColumnX + 25 - teacherTextWidth / 2;
+      doc.line(
+        teacherTextX,
+        currentY + 3.5 * lineSpacing + 1,
+        teacherTextX + teacherTextWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      // Reset font and add NIP
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipGuru || "N/A"}`,
+        rightColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        {
+          align: "center",
+        }
+      );
     } else {
       doc.setFontSize(10);
       doc.text("Data sekolah tidak tersedia.", margin, currentY);
@@ -2862,7 +2963,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       });
       const placeDateText = `${placeName}, ${formattedDate}`;
       const rightColumnX = pageWidth - margin - 50;
-      doc.text(placeDateText, rightColumnX + 25, currentY, { align: "center" });
+      doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
+        align: "center",
+      });
       currentY += 5;
 
       const principalText = [
@@ -2884,44 +2987,126 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       const signatureHeight = 20;
       const leftColumnX = margin;
 
+      // Principal signature and text
       if (schoolData.ttdKepsek) {
         doc.addImage(
           schoolData.ttdKepsek,
           "PNG",
           leftColumnX + 10,
-          currentY,
+          currentY - 3,
           signatureWidth,
           signatureHeight
         );
       }
-      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
+
+      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
         align: "center",
       });
-      principalText.slice(1).forEach((line, index) => {
-        doc.text(line, leftColumnX + 25, currentY + (index + 2) * lineSpacing, {
-          align: "center",
-        });
+
+      // Kosong dan kosong
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
       });
 
+      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
+        align: "center",
+      });
+
+      // Kosong dan kosong
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama kepala sekolah dengan format bold dan underline
+      const principalName = schoolData.namaKepsek || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(principalName, leftColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      // Add underline to principal name
+      const principalNameText = principalName;
+      const textWidth = doc.getTextWidth(principalNameText);
+      const textX = leftColumnX + 25 - textWidth / 2;
+      doc.line(
+        textX,
+        currentY + 3.5 * lineSpacing + 1,
+        textX + textWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      // Reset font and add NIP
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipKepsek || "N/A"}`,
+        leftColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        {
+          align: "center",
+        }
+      );
+
+      // Teacher signature and text
       if (schoolData.ttdGuru) {
         doc.addImage(
           schoolData.ttdGuru,
           "PNG",
           rightColumnX + 10,
-          currentY,
+          currentY - 5,
           signatureWidth,
           signatureHeight
         );
       }
-      doc.text("Guru Kelas,", rightColumnX + 25, currentY, { align: "center" });
-      teacherText.slice(1).forEach((line, index) => {
-        doc.text(
-          line,
-          rightColumnX + 25,
-          currentY + (index + 2) * lineSpacing,
-          { align: "center" }
-        );
+
+      // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY - 2, {
+        align: "center",
       });
+
+      // Kosong dan kosong
+      doc.text("", rightColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama guru dengan format bold dan underline
+      const teacherName = schoolData.namaGuru || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(teacherName, rightColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      // Add underline to teacher name
+      const teacherNameText = teacherName;
+      const teacherTextWidth = doc.getTextWidth(teacherNameText);
+      const teacherTextX = rightColumnX + 25 - teacherTextWidth / 2;
+      doc.line(
+        teacherTextX,
+        currentY + 3.5 * lineSpacing + 1,
+        teacherTextX + teacherTextWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      // Reset font and add NIP
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipGuru || "N/A"}`,
+        rightColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        {
+          align: "center",
+        }
+      );
     } else {
       doc.setFontSize(10);
       doc.text("Data sekolah tidak tersedia.", margin, currentY);
