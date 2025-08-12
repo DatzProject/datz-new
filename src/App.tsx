@@ -1813,24 +1813,33 @@ const MonthlyRecapTab: React.FC<{
               ))}
             </select>
           </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            />
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
-            <input
-              type="text"
-              value={placeName}
-              onChange={(e) => setPlaceName(e.target.value)}
-              placeholder="Masukkan nama tempat"
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            />
+        </div>
+
+        {/* Separator line and PDF settings section */}
+        <div className="border-t border-gray-200 pt-4 mb-6">
+          <p className="text-center text-sm font-medium text-gray-700 mb-4">
+            Pengaturan Tanggal dan Nama Tempat untuk File PDF
+          </p>
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
+              <input
+                type="text"
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                placeholder="Masukkan nama tempat"
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
           </div>
         </div>
 
@@ -2245,6 +2254,8 @@ const AttendanceHistoryTab: React.FC<{
   const [editedRecords, setEditedRecords] = useState<
     Record<string, AttendanceStatus>
   >({});
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const formatDateToDDMMYYYY = (dateStr: string): string => {
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
@@ -2253,12 +2264,10 @@ const AttendanceHistoryTab: React.FC<{
     return `${day}/${month}/${year}`;
   };
 
-  // Fungsi untuk memfilter data yang berisi formula
   const filterNonFormulaData = (
     data: AttendanceHistory[]
   ): AttendanceHistory[] => {
     return data.filter((record) => {
-      // Filter berdasarkan beberapa kondisi untuk menghindari formula
       const hasValidTanggal =
         record.tanggal &&
         !record.tanggal.toString().startsWith("=") &&
@@ -2310,7 +2319,6 @@ const AttendanceHistoryTab: React.FC<{
         !record.status.toString().includes("FORMULA") &&
         ["Hadir", "Izin", "Sakit", "Alpha"].includes(record.status.toString());
 
-      // Hanya tampilkan record yang memiliki semua field valid
       return (
         hasValidTanggal &&
         hasValidNama &&
@@ -2331,7 +2339,6 @@ const AttendanceHistoryTab: React.FC<{
       .then((data) => {
         if (data.success) {
           const newData = data.data || [];
-          // Filter data yang berisi formula sebelum memproses
           const filteredData = filterNonFormulaData(newData);
 
           const updatedData = filteredData.map((record: AttendanceHistory) => {
@@ -2385,6 +2392,7 @@ const AttendanceHistoryTab: React.FC<{
         "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
       )
     ) {
+      setIsDeleting(true);
       fetch(endpoint, {
         method: "POST",
         mode: "no-cors",
@@ -2404,7 +2412,8 @@ const AttendanceHistoryTab: React.FC<{
         })
         .catch(() =>
           alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
-        );
+        )
+        .finally(() => setIsDeleting(false));
     }
   };
 
@@ -2462,6 +2471,7 @@ const AttendanceHistoryTab: React.FC<{
       return;
     }
 
+    setIsSaving(true);
     const updates = Object.entries(editedRecords).map(([key, status]) => {
       const [tanggal, nisn] = key.split("_");
       return { tanggal, nisn, status };
@@ -2481,7 +2491,8 @@ const AttendanceHistoryTab: React.FC<{
         setEditedRecords({});
         onRefresh();
       })
-      .catch(() => alert("❌ Gagal menyimpan perubahan status kehadiran."));
+      .catch(() => alert("❌ Gagal menyimpan perubahan status kehadiran."))
+      .finally(() => setIsSaving(false));
   };
 
   return (
@@ -2617,16 +2628,26 @@ const AttendanceHistoryTab: React.FC<{
           {Object.keys(editedRecords).length > 0 && (
             <button
               onClick={saveChanges}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+              disabled={isSaving}
+              className={`px-6 py-2 text-white rounded-lg font-medium ${
+                isSaving
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              💾 Simpan Perubahan
+              {isSaving ? "Memproses..." : "💾 Simpan Perubahan"}
             </button>
           )}
           <button
             onClick={handleDeleteAllAttendance}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+            disabled={isDeleting}
+            className={`px-6 py-2 text-white rounded-lg font-medium ${
+              isDeleting
+                ? "bg-red-400 cursor-not-allowed"
+                : "bg-red-600 hover:bg-red-700"
+            }`}
           >
-            🗑️ Hapus Semua Data Absensi
+            {isDeleting ? "Memproses..." : "🗑️ Hapus Semua Data Absensi"}
           </button>
         </div>
       </div>
@@ -3160,24 +3181,33 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
               <option value="2">Semester 2</option>
             </select>
           </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            />
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
-            <input
-              type="text"
-              value={placeName}
-              onChange={(e) => setPlaceName(e.target.value)}
-              placeholder="Masukkan nama tempat"
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            />
+        </div>
+
+        {/* Separator line and PDF settings section */}
+        <div className="border-t border-gray-200 pt-4 mb-6">
+          <p className="text-center text-sm font-medium text-gray-700 mb-4">
+            Pengaturan Tanggal dan Nama Tempat untuk File PDF
+          </p>
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
+              <input
+                type="text"
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                placeholder="Masukkan nama tempat"
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
           </div>
         </div>
 
