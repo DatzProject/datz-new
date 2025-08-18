@@ -1818,7 +1818,8 @@ const MonthlyRecapTab: React.FC<{
         {/* Separator line and PDF settings section */}
         <div className="border-t border-gray-200 pt-4 mb-6">
           <p className="text-center text-sm font-medium text-gray-700 mb-4">
-            Pengaturan Tanggal dan Nama Tempat untuk File PDF
+            Pengaturan Tanggal & Nama Tempat <br /> untuk Rekap Bulanan pada
+            File PDF
           </p>
           <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
             <div className="text-center">
@@ -3186,7 +3187,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         {/* Separator line and PDF settings section */}
         <div className="border-t border-gray-200 pt-4 mb-6">
           <p className="text-center text-sm font-medium text-gray-700 mb-4">
-            Pengaturan Tanggal dan Nama Tempat untuk File PDF
+            Pengaturan Tanggal & Nama Tempat <br /> untuk Rekap Semester pada
+            File PDF
           </p>
           <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
             <div className="text-center">
