@@ -345,16 +345,16 @@ const SchoolDataTab: React.FC<{
               placeholder="Nama Guru"
               value={namaGuru}
               onChange={(e) => setNamaGuru(e.target.value)}
-              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
-              disabled={isSaving} // Disable input during saving
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2 text-gray-400 bg-gray-50"
+              disabled={true}
             />
             <input
               type="text"
               placeholder="NIP Guru"
               value={nipGuru}
               onChange={(e) => setNipGuru(e.target.value)}
-              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2"
-              disabled={isSaving} // Disable input during saving
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg mb-2 text-gray-400 bg-gray-50"
+              disabled={true}
             />
             <div className="mb-2">
               <p className="text-sm text-gray-500 mb-1">Tanda Tangan Guru</p>
@@ -1411,12 +1411,33 @@ const AttendanceTab: React.FC<{
 
             <div className="space-y-4 mb-6 overflow-x-auto">
               <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-2 py-1 text-center text-sm font-semibold text-gray-700">
+                      No.
+                    </th>
+                    <th className="border border-gray-200 px-2 py-1 text-left text-sm font-semibold text-gray-700">
+                      Nama Siswa
+                    </th>
+                    <th className="border border-gray-200 px-2 py-1 text-center text-sm font-semibold text-gray-700">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {filteredStudents.map((s) => {
+                  {filteredStudents.map((s, index) => {
                     const isExisting = existingStudentIds.has(s.id);
                     return (
                       <tr key={s.id} className="border-b border-gray-200">
-                        <td style={{ width: "6cm" }} className="p-2">
+                        <td
+                          style={{ width: "1cm" }}
+                          className="p-2 text-center"
+                        >
+                          <span className="text-sm font-medium text-gray-800">
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td style={{ width: "5.5cm" }} className="p-2">
                           <p className="text-base font-semibold text-gray-800">
                             {s.name || "N/A"}
                           </p>
@@ -1436,10 +1457,10 @@ const AttendanceTab: React.FC<{
                                     attendance[date]?.[s.id] === status
                                       ? `${statusColor[status]} text-white`
                                       : isExisting
-                                      ? "bg-gray-200 text-gray-500 cursor-not-allowed" // Disabled style jika existing
+                                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
                                   }`}
-                                  disabled={isExisting} // NEW: Disable per siswa jika existing
+                                  disabled={isExisting}
                                 >
                                   {status}
                                 </button>
@@ -1467,7 +1488,7 @@ const AttendanceTab: React.FC<{
               >
                 {isSaving
                   ? "⏳ Menyimpan..."
-                  : "💾 Simpan Absensi Siswa Baru " +
+                  : "💾 Simpan Absensi Siswa " +
                     (selectedKelas !== "Semua"
                       ? `Kelas ${selectedKelas}`
                       : "Semua Kelas")}
@@ -1594,6 +1615,7 @@ const MonthlyRecapTab: React.FC<{
 
   const downloadExcel = () => {
     const headers = [
+      "No.",
       "Nama",
       "Kelas",
       "Hadir",
@@ -1604,7 +1626,8 @@ const MonthlyRecapTab: React.FC<{
     ];
     const data = [
       headers,
-      ...filteredRecapData.map((item) => [
+      ...filteredRecapData.map((item, index) => [
+        index + 1, // Nomor urut
         item.nama || "N/A",
         item.kelas || "N/A",
         item.hadir || 0,
@@ -1614,6 +1637,7 @@ const MonthlyRecapTab: React.FC<{
         item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
       ]),
       [
+        "",
         "TOTAL",
         "",
         statusSummary.Hadir,
@@ -1623,6 +1647,7 @@ const MonthlyRecapTab: React.FC<{
         "",
       ],
       [
+        "",
         "PERSEN",
         "",
         `${(
@@ -1662,7 +1687,16 @@ const MonthlyRecapTab: React.FC<{
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = headers.map(() => ({ wch: 15 }));
+    ws["!cols"] = [
+      { wch: 5 }, // Lebar kolom No. (sempit)
+      { wch: 25 }, // Nama
+      { wch: 10 }, // Kelas
+      { wch: 10 }, // Hadir
+      { wch: 10 }, // Alpha
+      { wch: 10 }, // Izin
+      { wch: 10 }, // Sakit
+      { wch: 10 }, // % Hadir
+    ];
     const headerStyle = {
       font: { bold: true },
       fill: { fgColor: { rgb: "FFFF00" } },
@@ -1683,12 +1717,12 @@ const MonthlyRecapTab: React.FC<{
       ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
     });
     const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${totalRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
     });
     const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${percentRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
     });
@@ -1730,6 +1764,7 @@ const MonthlyRecapTab: React.FC<{
 
     // Table headers and data
     const headers = [
+      "No.",
       "Nama",
       "Kelas",
       "Hadir",
@@ -1738,7 +1773,8 @@ const MonthlyRecapTab: React.FC<{
       "Sakit",
       "% Hadir",
     ];
-    const body = filteredRecapData.map((item) => [
+    const body = filteredRecapData.map((item, index) => [
+      index + 1, // Nomor urut
       item.nama || "N/A",
       item.kelas || "N/A",
       item.hadir || 0,
@@ -1749,6 +1785,7 @@ const MonthlyRecapTab: React.FC<{
     ]);
 
     const totalRow = [
+      "",
       "TOTAL",
       "",
       statusSummary.Hadir,
@@ -1759,6 +1796,7 @@ const MonthlyRecapTab: React.FC<{
     ];
 
     const percentRow = [
+      "",
       "PERSEN",
       "",
       `${(
@@ -1808,13 +1846,14 @@ const MonthlyRecapTab: React.FC<{
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
+        0: { cellWidth: 10 }, // No. (sempit)
+        1: { cellWidth: 50 }, // Nama
+        2: { cellWidth: 20 }, // Kelas
+        3: { cellWidth: 20 }, // Hadir
+        4: { cellWidth: 20 }, // Alpha
+        5: { cellWidth: 20 }, // Izin
+        6: { cellWidth: 20 }, // Sakit
+        7: { cellWidth: 20 }, // % Hadir
       },
     });
 
@@ -1993,7 +2032,6 @@ const MonthlyRecapTab: React.FC<{
         <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
           📊 Rekap Absensi Bulanan
         </h2>
-
         <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
           <div className="text-center">
             <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
@@ -2103,6 +2141,9 @@ const MonthlyRecapTab: React.FC<{
               <table className="min-w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-2 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      No.
+                    </th>
                     <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Nama
                     </th>
@@ -2132,6 +2173,9 @@ const MonthlyRecapTab: React.FC<{
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
+                      <td className="border border-gray-200 px-2 py-0.5 text-center text-sm text-gray-600 font-medium">
+                        {index + 1}
+                      </td>
                       <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.nama || "N/A"}
                       </td>
@@ -2978,6 +3022,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
   const downloadExcel = () => {
     const headers = [
+      "No.",
       "Nama",
       "Kelas",
       "Hadir",
@@ -2988,7 +3033,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     ];
     const data = [
       headers,
-      ...filteredRecapData.map((item) => [
+      ...filteredRecapData.map((item, index) => [
+        index + 1, // Nomor urut
         item.nama || "N/A",
         item.kelas || "N/A",
         item.hadir || 0,
@@ -2998,6 +3044,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
       ]),
       [
+        "",
         "TOTAL",
         "",
         statusSummary.Hadir,
@@ -3007,6 +3054,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         "",
       ],
       [
+        "",
         "PERSEN",
         "",
         `${(
@@ -3046,7 +3094,16 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = headers.map(() => ({ wch: 15 }));
+    ws["!cols"] = [
+      { wch: 5 }, // Lebar kolom No. (sempit)
+      { wch: 25 }, // Nama
+      { wch: 10 }, // Kelas
+      { wch: 10 }, // Hadir
+      { wch: 10 }, // Alpha
+      { wch: 10 }, // Izin
+      { wch: 10 }, // Sakit
+      { wch: 10 }, // % Hadir
+    ];
     const headerStyle = {
       font: { bold: true },
       fill: { fgColor: { rgb: "FFFF00" } },
@@ -3067,12 +3124,12 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
     });
     const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${totalRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
     });
     const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G"].forEach((col, idx) => {
+    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
       const cellAddress = `${col}${percentRow}`;
       ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
     });
@@ -3110,6 +3167,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     currentY += 10;
 
     const headers = [
+      "No.",
       "Nama",
       "Kelas",
       "Hadir",
@@ -3118,7 +3176,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "Sakit",
       "% Hadir",
     ];
-    const body = filteredRecapData.map((item) => [
+    const body = filteredRecapData.map((item, index) => [
+      index + 1, // Nomor urut
       item.nama || "N/A",
       item.kelas || "N/A",
       item.hadir || 0,
@@ -3129,6 +3188,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
     ]);
 
     const totalRow = [
+      "",
       "TOTAL",
       "",
       statusSummary.Hadir,
@@ -3138,6 +3198,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "",
     ];
     const percentRow = [
+      "",
       "PERSEN",
       "",
       `${(
@@ -3187,13 +3248,14 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 50 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 20 },
-        5: { cellWidth: 20 },
-        6: { cellWidth: 20 },
+        0: { cellWidth: 10 }, // No. (sempit)
+        1: { cellWidth: 50 }, // Nama
+        2: { cellWidth: 20 }, // Kelas
+        3: { cellWidth: 20 }, // Hadir
+        4: { cellWidth: 20 }, // Alpha
+        5: { cellWidth: 20 }, // Izin
+        6: { cellWidth: 20 }, // Sakit
+        7: { cellWidth: 20 }, // % Hadir
       },
     });
 
@@ -3245,19 +3307,6 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
           signatureHeight
         );
       }
-
-      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
-      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
-        align: "center",
-      });
-
-      // Kosong dan kosong
-      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
-        align: "center",
-      });
-      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
-        align: "center",
-      });
 
       // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
       doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
@@ -3485,6 +3534,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
               <table className="min-w-full border-collapse border border-gray-200">
                 <thead>
                   <tr className="bg-gray-100">
+                    <th className="border border-gray-200 px-2 py-0.5 text-center text-sm font-semibold text-gray-700">
+                      No.
+                    </th>
                     <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
                       Nama
                     </th>
@@ -3514,6 +3566,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
                       key={index}
                       className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
+                      <td className="border border-gray-200 px-2 py-0.5 text-center text-sm text-gray-600 font-medium">
+                        {index + 1}
+                      </td>
                       <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
                         {item.nama || "N/A"}
                       </td>
