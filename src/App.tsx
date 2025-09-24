@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbwrHZrcQE0zRf87sFHGNeHmcxMYnbVGowDIz1MgG3fJTkL1CgNHa1gBhnDFaB24i18q/exec";
+  "https://script.google.com/macros/s/AKfycbxbadlwrLRTtGys_KbwSd9hYKwvfjwY6GvrWAncTQ4tpPoRbyMOaDp1QbclGDI57BCt/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -186,10 +186,8 @@ const SchoolDataTab: React.FC<{
       alert("⚠️ Semua field wajib diisi kecuali tanda tangan!");
       return;
     }
-
     setIsSaving(true);
 
-    // Ambil signature dari canvas jika sedang dalam mode signing
     let finalTtdKepsek = ttdKepsek;
     let finalTtdGuru = ttdGuru;
 
@@ -218,25 +216,29 @@ const SchoolDataTab: React.FC<{
       ttdGuru: finalTtdGuru || "",
     };
 
+    // HAPUS mode: "no-cors"
     fetch(endpoint, {
       method: "POST",
-      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "schoolData",
         ...data,
       }),
     })
-      .then(() => {
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((result) => {
         alert("✅ Data sekolah berhasil diperbarui!");
-        // Reset signing states
         setIsKepsekSigning(false);
         setIsGuruSigning(false);
         onRefresh();
         setIsSaving(false);
       })
-      .catch(() => {
-        alert("❌ Gagal memperbarui data sekolah.");
+      .catch((error) => {
+        console.error("Error menyimpan data sekolah:", error);
+        alert("❌ Gagal memperbarui data sekolah. Cek console untuk detail.");
         setIsSaving(false);
       });
   };
