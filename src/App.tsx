@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxoD2kfZxCRxnktrjFGsvFxkAg69ExexHtWvgCAseeY4d21FV9R8BlvGlDDfsC6LndD/exec";
+  "https://script.google.com/macros/s/AKfycbw8209u8zN0T8_Tl8wea5xGDJGroluvXaP-33UdDgEjtzS1Q6oIjlxLBn8RGg6vSdRo/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -159,8 +159,57 @@ const SchoolDataTab: React.FC<{
       });
   }, []);
 
+  // Fungsi kompresi signature dengan proper typing
+  const compressSignature = (
+    dataUrl: string,
+    maxSizeKB: number = 100
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          resolve(dataUrl); // Return original if context is null
+          return;
+        }
+
+        let { width, height } = img;
+        canvas.width = width;
+        canvas.height = height;
+
+        let quality = 0.8;
+        let compressedDataUrl = dataUrl;
+
+        while (compressedDataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+          if (compressedDataUrl.length > maxSizeKB * 2 * 1024) {
+            width = Math.floor(width * 0.8);
+            height = Math.floor(height * 0.8);
+            canvas.width = width;
+            canvas.height = height;
+          }
+
+          ctx.clearRect(0, 0, width, height);
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+          quality -= 0.1;
+        }
+
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => resolve(dataUrl); // Return original if image fails to load
+      img.src = dataUrl;
+    });
+  };
+
   // Fungsi untuk mengambil signature dari canvas
-  const getCanvasSignature = (canvas: SignatureCanvas | null): string => {
+  const getCanvasSignature = async (
+    canvas: SignatureCanvas | null
+  ): Promise<string> => {
     if (!canvas || canvas.isEmpty()) {
       return "";
     }
@@ -174,6 +223,22 @@ const SchoolDataTab: React.FC<{
         return "";
       }
 
+      console.log(
+        `Original signature size: ${(signature.length / 1024).toFixed(2)} KB`
+      );
+
+      if (signature.length > 100 * 1024) {
+        // 100KB
+        console.log("Signature too large, compressing...");
+        const compressed = await compressSignature(signature, 80);
+        console.log(
+          `Compressed signature size: ${(compressed.length / 1024).toFixed(
+            2
+          )} KB`
+        );
+        return compressed;
+      }
+
       return signature;
     } catch (error) {
       console.error("Error getting signature:", error);
@@ -181,7 +246,49 @@ const SchoolDataTab: React.FC<{
     }
   };
 
-  const handleSave = () => {
+  // Fungsi fetch dengan timeout
+  const fetchWithTimeout = (
+    url: string,
+    options: RequestInit,
+    timeoutMs: number = 30000
+  ): Promise<Response> => {
+    return new Promise((resolve, reject) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        reject(new Error(`Request timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+        .then((response) => {
+          clearTimeout(timeoutId);
+          resolve(response);
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          if (error.name === "AbortError") {
+            reject(new Error("Request was cancelled due to timeout"));
+          } else {
+            reject(error);
+          }
+        });
+    });
+  };
+
+  // Helper function for error handling
+  const isErrorWithMessage = (error: unknown): error is { message: string } => {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error &&
+      typeof (error as Record<string, unknown>).message === "string"
+    );
+  };
+
+  const handleSave = async (): Promise<void> => {
     if (!namaKepsek || !nipKepsek || !namaGuru || !nipGuru) {
       alert("⚠️ Semua field wajib diisi kecuali tanda tangan!");
       return;
@@ -189,88 +296,143 @@ const SchoolDataTab: React.FC<{
 
     setIsSaving(true);
 
-    // Ambil signature dari canvas jika sedang dalam mode signing
-    let finalTtdKepsek = ttdKepsek;
-    let finalTtdGuru = ttdGuru;
+    try {
+      let finalTtdKepsek = ttdKepsek;
+      let finalTtdGuru = ttdGuru;
 
-    if (isKepsekSigning && kepsekSigCanvas.current) {
-      const newSignature = getCanvasSignature(kepsekSigCanvas.current);
-      if (newSignature) {
-        finalTtdKepsek = newSignature;
-        setTtdKepsek(newSignature);
+      if (isKepsekSigning && kepsekSigCanvas.current) {
+        const newSignature = await getCanvasSignature(kepsekSigCanvas.current);
+        if (newSignature) {
+          finalTtdKepsek = newSignature;
+          setTtdKepsek(newSignature);
+        }
       }
-    }
 
-    if (isGuruSigning && guruSigCanvas.current) {
-      const newSignature = getCanvasSignature(guruSigCanvas.current);
-      if (newSignature) {
-        finalTtdGuru = newSignature;
-        setTtdGuru(newSignature);
+      if (isGuruSigning && guruSigCanvas.current) {
+        const newSignature = await getCanvasSignature(guruSigCanvas.current);
+        if (newSignature) {
+          finalTtdGuru = newSignature;
+          setTtdGuru(newSignature);
+        }
       }
-    }
 
-    const data: SchoolData = {
-      namaKepsek,
-      nipKepsek,
-      ttdKepsek: finalTtdKepsek || "",
-      namaGuru,
-      nipGuru,
-      ttdGuru: finalTtdGuru || "",
-    };
+      const data: SchoolData = {
+        namaKepsek,
+        nipKepsek,
+        ttdKepsek: finalTtdKepsek || "",
+        namaGuru,
+        nipGuru,
+        ttdGuru: finalTtdGuru || "",
+      };
 
-    fetch(endpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      const payloadSize = JSON.stringify({
         type: "schoolData",
         ...data,
-      }),
-    })
-      .then(() => {
-        alert("✅ Data sekolah berhasil diperbarui!");
-        // Reset signing states
-        setIsKepsekSigning(false);
-        setIsGuruSigning(false);
-        onRefresh();
-        setIsSaving(false);
-      })
-      .catch(() => {
-        alert("❌ Gagal memperbarui data sekolah.");
-        setIsSaving(false);
-      });
+      }).length;
+      console.log(`Total payload size: ${(payloadSize / 1024).toFixed(2)} KB`);
+
+      let attempts = 0;
+      const maxAttempts = 3;
+      let lastError: Error | null = null;
+
+      while (attempts < maxAttempts) {
+        try {
+          console.log(`Save attempt ${attempts + 1}/${maxAttempts}`);
+
+          await fetchWithTimeout(
+            endpoint,
+            {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "schoolData",
+                ...data,
+              }),
+            },
+            45000
+          );
+
+          alert("✅ Data sekolah berhasil diperbarui!");
+          setIsKepsekSigning(false);
+          setIsGuruSigning(false);
+          onRefresh();
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          attempts++;
+          console.error(`Save attempt ${attempts} failed:`, error);
+
+          if (attempts < maxAttempts) {
+            console.log(`Retrying in ${attempts * 2} seconds...`);
+            await new Promise((resolve) =>
+              setTimeout(resolve, attempts * 2000)
+            );
+          }
+        }
+      }
+
+      throw new Error(
+        `Failed after ${maxAttempts} attempts: ${
+          lastError?.message || "Unknown error"
+        }`
+      );
+    } catch (error) {
+      console.error("Save error:", error);
+
+      const errorMessage = isErrorWithMessage(error)
+        ? error.message
+        : "Unknown error occurred";
+
+      if (errorMessage.includes("timeout")) {
+        alert(
+          "❌ Gagal menyimpan: Waktu habis. Coba gunakan tanda tangan yang lebih sederhana."
+        );
+      } else if (
+        errorMessage.includes("payload too large") ||
+        errorMessage.includes("413")
+      ) {
+        alert(
+          "❌ Gagal menyimpan: Tanda tangan terlalu besar. Coba gunakan garis yang lebih sederhana."
+        );
+      } else {
+        alert("❌ Gagal memperbarui data sekolah: " + errorMessage);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Toggle signing mode untuk Kepala Sekolah
-  const handleToggleKepsekSigning = () => {
+  const handleToggleKepsekSigning = async (): Promise<void> => {
     if (isKepsekSigning) {
       // Keluar dari mode signing: simpan signature jika ada
       if (kepsekSigCanvas.current && !kepsekSigCanvas.current.isEmpty()) {
-        const newSignature = getCanvasSignature(kepsekSigCanvas.current);
+        const newSignature = await getCanvasSignature(kepsekSigCanvas.current);
         if (newSignature) {
           setTtdKepsek(newSignature);
         }
       }
       setIsKepsekSigning(false);
     } else {
-      // Masuk ke mode signing: jangan clear canvas!
+      // Masuk ke mode signing
       setIsKepsekSigning(true);
     }
   };
 
   // Toggle signing mode untuk Guru
-  const handleToggleGuruSigning = () => {
+  const handleToggleGuruSigning = async (): Promise<void> => {
     if (isGuruSigning) {
       // Keluar dari mode signing: simpan signature jika ada
       if (guruSigCanvas.current && !guruSigCanvas.current.isEmpty()) {
-        const newSignature = getCanvasSignature(guruSigCanvas.current);
+        const newSignature = await getCanvasSignature(guruSigCanvas.current);
         if (newSignature) {
           setTtdGuru(newSignature);
         }
       }
       setIsGuruSigning(false);
     } else {
-      // Masuk mode signing: jangan clear!
+      // Masuk mode signing
       setIsGuruSigning(true);
     }
   };
@@ -319,14 +481,14 @@ const SchoolDataTab: React.FC<{
                   ref={kepsekSigCanvas}
                   penColor="black"
                   onBegin={() => setIsDrawingKepsek(true)}
-                  onEnd={() => {
+                  onEnd={async () => {
                     setIsDrawingKepsek(false);
                     if (
                       isKepsekSigning &&
                       kepsekSigCanvas.current &&
                       !kepsekSigCanvas.current.isEmpty()
                     ) {
-                      const newSignature = getCanvasSignature(
+                      const newSignature = await getCanvasSignature(
                         kepsekSigCanvas.current
                       );
                       console.log(
@@ -358,7 +520,7 @@ const SchoolDataTab: React.FC<{
               </div>
               <div className="flex gap-2 mt-2">
                 <button
-                  onClick={handleToggleKepsekSigning}
+                  onClick={() => handleToggleKepsekSigning()}
                   className={`px-4 py-1 rounded-lg text-sm font-medium ${
                     isKepsekSigning
                       ? "bg-red-500 hover:bg-red-600 text-white"
@@ -407,14 +569,14 @@ const SchoolDataTab: React.FC<{
                 <SignatureCanvas
                   ref={guruSigCanvas}
                   penColor="black"
-                  onEnd={() => {
+                  onEnd={async () => {
                     // Simpan signature secara otomatis saat user selesai menandatangani
                     if (
                       isGuruSigning &&
                       guruSigCanvas.current &&
                       !guruSigCanvas.current.isEmpty()
                     ) {
-                      const newSignature = getCanvasSignature(
+                      const newSignature = await getCanvasSignature(
                         guruSigCanvas.current
                       );
                       if (newSignature) {
@@ -442,7 +604,7 @@ const SchoolDataTab: React.FC<{
               </div>
               <div className="flex gap-2 mt-2">
                 <button
-                  onClick={handleToggleGuruSigning}
+                  onClick={() => handleToggleGuruSigning()}
                   className={`px-4 py-1 rounded-lg text-sm font-medium ${
                     isGuruSigning
                       ? "bg-red-500 hover:bg-red-600 text-white"
