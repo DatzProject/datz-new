@@ -113,6 +113,19 @@ const formatDateDDMMYYYY = (isoDate: string): string => {
   return `${day}/${month}/${year}`;
 };
 
+const validateImageData = (dataUrl: string): string | null => {
+  try {
+    if (!dataUrl || !dataUrl.startsWith("data:image/")) return null;
+    const base64Data = dataUrl.split(",")[1];
+    if (!base64Data) return null;
+    atob(base64Data);
+    return dataUrl;
+  } catch (error) {
+    console.warn("Invalid image data:", error);
+    return null;
+  }
+};
+
 const SchoolDataTab: React.FC<{
   onRefresh: () => void;
 }> = ({ onRefresh }) => {
@@ -1834,19 +1847,6 @@ const MonthlyRecapTab: React.FC<{
     XLSX.writeFile(wb, fileName);
   };
 
-  const validateImageData = (dataUrl: string): string | null => {
-    try {
-      if (!dataUrl || !dataUrl.startsWith("data:image/")) return null;
-      const base64Data = dataUrl.split(",")[1];
-      if (!base64Data) return null;
-      atob(base64Data);
-      return dataUrl;
-    } catch (error) {
-      console.warn("Invalid image data:", error);
-      return null;
-    }
-  };
-
   const downloadPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -1961,7 +1961,7 @@ const MonthlyRecapTab: React.FC<{
     });
 
     // Update currentY after the table
-    currentY = doc.lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
     // Add school data (Principal and Teacher details) - IMPROVED VERSION
     if (schoolData) {
@@ -3380,7 +3380,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       },
     });
 
-    currentY = doc.lastAutoTable.finalY + 10;
+    currentY = (doc as any).lastAutoTable.finalY + 10;
 
     // Add school data (Principal and Teacher details) - IMPROVED VERSION
     if (schoolData) {
