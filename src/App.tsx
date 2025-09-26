@@ -151,13 +151,13 @@ const SchoolDataTab: React.FC<{
     const tempCanvas = document.createElement("canvas");
     const tempCtx = tempCanvas.getContext("2d");
 
-    // Ukuran ditingkatkan: 400x200 pixel (dari 300x150)
-    tempCanvas.width = 400;
-    tempCanvas.height = 200;
+    // Ukuran lebih besar lagi: 600x300 pixel untuk detail maksimal
+    tempCanvas.width = 600;
+    tempCanvas.height = 300;
 
     if (tempCtx) {
       // Background transparan
-      tempCtx.clearRect(0, 0, 400, 200);
+      tempCtx.clearRect(0, 0, 600, 300);
 
       // Set smoothing untuk kualitas yang lebih baik
       tempCtx.imageSmoothingEnabled = true;
@@ -172,43 +172,91 @@ const SchoolDataTab: React.FC<{
         canvasEl.height,
         0,
         0,
-        400,
-        200
+        600,
+        300
       );
 
-      // Optimasi warna: buat garis lebih tegas
-      const imageData = tempCtx.getImageData(0, 0, 400, 200);
+      // Anti-aliasing dan smoothing untuk hasil yang halus
+      const imageData = tempCtx.getImageData(0, 0, 600, 300);
       const data = imageData.data;
+      const smoothData = new Uint8ClampedArray(data);
 
-      for (let i = 0; i < data.length; i += 4) {
-        const alpha = data[i + 3];
+      // Pass 1: Deteksi dan smooth garis
+      for (let y = 1; y < 299; y++) {
+        for (let x = 1; x < 599; x++) {
+          const idx = (y * 600 + x) * 4;
+          const alpha = data[idx + 3];
 
-        if (alpha > 50) {
-          // Threshold lebih sensitif untuk menangkap garis tipis
+          if (alpha > 30) {
+            // Threshold sangat sensitif
+            // Hitung rata-rata alpha dari tetangga 3x3
+            let totalAlpha = 0;
+            let count = 0;
 
-          // Buat garis hitam pekat
-          data[i] = 0; // Red
-          data[i + 1] = 0; // Green
-          data[i + 2] = 0; // Blue
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const neighborIdx = ((y + dy) * 600 + (x + dx)) * 4;
+                if (neighborIdx >= 0 && neighborIdx < data.length) {
+                  totalAlpha += data[neighborIdx + 3];
+                  count++;
+                }
+              }
+            }
 
-          // Enhancement alpha untuk garis lebih tegas
-          if (alpha > 150) {
-            data[i + 3] = 255; // Alpha penuh untuk garis utama
-          } else if (alpha > 100) {
-            data[i + 3] = 220; // Alpha tinggi untuk garis sedang
+            const avgAlpha = totalAlpha / count;
+
+            // Buat garis hitam pekat
+            smoothData[idx] = 0; // Red
+            smoothData[idx + 1] = 0; // Green
+            smoothData[idx + 2] = 0; // Blue
+
+            // Smoothing alpha berdasarkan konteks tetangga
+            if (alpha > 200 || avgAlpha > 150) {
+              smoothData[idx + 3] = 255; // Garis utama
+            } else if (alpha > 120 || avgAlpha > 80) {
+              smoothData[idx + 3] = Math.min(240, alpha * 1.8); // Garis sedang
+            } else if (alpha > 60 || avgAlpha > 40) {
+              smoothData[idx + 3] = Math.min(200, alpha * 2.2); // Garis tipis
+            } else {
+              smoothData[idx + 3] = Math.min(150, alpha * 3); // Garis sangat tipis
+            }
           } else {
-            data[i + 3] = Math.min(180, alpha * 2.5); // Tingkatkan alpha untuk garis tipis
+            // Buat transparan
+            smoothData[idx + 3] = 0;
           }
-        } else {
-          // Buat transparan
-          data[i + 3] = 0;
         }
       }
 
-      tempCtx.putImageData(imageData, 0, 0);
+      // Pass 2: Sharpening ringan untuk ketajaman
+      const finalData = new Uint8ClampedArray(smoothData);
+
+      for (let y = 1; y < 299; y++) {
+        for (let x = 1; x < 599; x++) {
+          const idx = (y * 600 + x) * 4;
+
+          if (smoothData[idx + 3] > 100) {
+            const center = smoothData[idx + 3];
+
+            // Kernel sharpening sederhana
+            const top = smoothData[((y - 1) * 600 + x) * 4 + 3];
+            const bottom = smoothData[((y + 1) * 600 + x) * 4 + 3];
+            const left = smoothData[(y * 600 + (x - 1)) * 4 + 3];
+            const right = smoothData[(y * 600 + (x + 1)) * 4 + 3];
+
+            const avgNeighbor = (top + bottom + left + right) / 4;
+            const sharpened = center + (center - avgNeighbor) * 0.2;
+
+            finalData[idx + 3] = Math.min(255, Math.max(0, sharpened));
+          }
+        }
+      }
+
+      // Terapkan hasil akhir
+      const finalImageData = new ImageData(finalData, 600, 300);
+      tempCtx.putImageData(finalImageData, 0, 0);
     }
 
-    // Return PNG dengan kualitas tinggi
+    // Return PNG dengan kualitas tinggi maksimal
     return tempCanvas.toDataURL("image/png", 1.0);
   };
 
