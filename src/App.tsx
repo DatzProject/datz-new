@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbysnPD77sqJKJku1OBhbaXU9mJMzSxvkgJiR0tyHGmEGZJ6gYhxdEVhu6J4Jhvka6hI/exec";
+  "https://script.google.com/macros/s/AKfycbw5R2MiBebnel8er-tM9ML9AHWpcA5AMvYtDF_mdIV7hnfmoHewHH5idCYSD3nM7m6F/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -42,10 +42,14 @@ interface Student {
 interface SchoolData {
   namaKepsek: string;
   nipKepsek: string;
-  ttdKepsek: string;
+  ttdKepsek1: string; // TAMBAH
+  ttdKepsek2: string; // TAMBAH
+  ttdKepsekMix: string; // TAMBAH
   namaGuru: string;
   nipGuru: string;
-  ttdGuru: string;
+  ttdGuru1: string; // TAMBAH
+  ttdGuru2: string; // TAMBAH
+  ttdGuruMix: string; // TAMBAH
 }
 
 type AttendanceStatus = "Hadir" | "Izin" | "Sakit" | "Alpha";
@@ -113,19 +117,6 @@ const formatDateDDMMYYYY = (isoDate: string): string => {
   return `${day}/${month}/${year}`;
 };
 
-const validateImageData = (dataUrl: string): string | null => {
-  try {
-    if (!dataUrl || !dataUrl.startsWith("data:image/")) return null;
-    const base64Data = dataUrl.split(",")[1];
-    if (!base64Data) return null;
-    atob(base64Data);
-    return dataUrl;
-  } catch (error) {
-    console.warn("Invalid image data:", error);
-    return null;
-  }
-};
-
 const SchoolDataTab: React.FC<{
   onRefresh: () => void;
 }> = ({ onRefresh }) => {
@@ -137,128 +128,11 @@ const SchoolDataTab: React.FC<{
   const [ttdKepsek, setTtdKepsek] = useState("");
   const [ttdGuru, setTtdGuru] = useState("");
   const [loading, setLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false); // Add isSaving state
   const [isKepsekSigning, setIsKepsekSigning] = useState(false);
   const [isGuruSigning, setIsGuruSigning] = useState(false);
   const kepsekSigCanvas = useRef<SignatureCanvas>(null);
   const guruSigCanvas = useRef<SignatureCanvas>(null);
-
-  // FUNGSI KOMPRES TANDA TANGAN (HANYA 1 SAJA)
-  const compressSignature = (canvas: SignatureCanvas): string => {
-    const canvasEl = canvas.getCanvas();
-
-    // Buat canvas dengan ukuran yang lebih besar untuk kualitas lebih baik
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
-
-    // Ukuran lebih besar lagi: 600x300 pixel untuk detail maksimal
-    tempCanvas.width = 600;
-    tempCanvas.height = 300;
-
-    if (tempCtx) {
-      // Background transparan
-      tempCtx.clearRect(0, 0, 600, 300);
-
-      // Set smoothing untuk kualitas yang lebih baik
-      tempCtx.imageSmoothingEnabled = true;
-      tempCtx.imageSmoothingQuality = "high";
-
-      // Gambar ulang dengan ukuran diperkecil tapi masih tajam
-      tempCtx.drawImage(
-        canvasEl,
-        0,
-        0,
-        canvasEl.width,
-        canvasEl.height,
-        0,
-        0,
-        600,
-        300
-      );
-
-      // Anti-aliasing dan smoothing untuk hasil yang halus
-      const imageData = tempCtx.getImageData(0, 0, 600, 300);
-      const data = imageData.data;
-      const smoothData = new Uint8ClampedArray(data);
-
-      // Pass 1: Deteksi dan smooth garis
-      for (let y = 1; y < 299; y++) {
-        for (let x = 1; x < 599; x++) {
-          const idx = (y * 600 + x) * 4;
-          const alpha = data[idx + 3];
-
-          if (alpha > 30) {
-            // Threshold sangat sensitif
-            // Hitung rata-rata alpha dari tetangga 3x3
-            let totalAlpha = 0;
-            let count = 0;
-
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
-                const neighborIdx = ((y + dy) * 600 + (x + dx)) * 4;
-                if (neighborIdx >= 0 && neighborIdx < data.length) {
-                  totalAlpha += data[neighborIdx + 3];
-                  count++;
-                }
-              }
-            }
-
-            const avgAlpha = totalAlpha / count;
-
-            // Buat garis hitam pekat
-            smoothData[idx] = 0; // Red
-            smoothData[idx + 1] = 0; // Green
-            smoothData[idx + 2] = 0; // Blue
-
-            // Smoothing alpha berdasarkan konteks tetangga
-            if (alpha > 200 || avgAlpha > 150) {
-              smoothData[idx + 3] = 255; // Garis utama
-            } else if (alpha > 120 || avgAlpha > 80) {
-              smoothData[idx + 3] = Math.min(240, alpha * 1.8); // Garis sedang
-            } else if (alpha > 60 || avgAlpha > 40) {
-              smoothData[idx + 3] = Math.min(200, alpha * 2.2); // Garis tipis
-            } else {
-              smoothData[idx + 3] = Math.min(150, alpha * 3); // Garis sangat tipis
-            }
-          } else {
-            // Buat transparan
-            smoothData[idx + 3] = 0;
-          }
-        }
-      }
-
-      // Pass 2: Sharpening ringan untuk ketajaman
-      const finalData = new Uint8ClampedArray(smoothData);
-
-      for (let y = 1; y < 299; y++) {
-        for (let x = 1; x < 599; x++) {
-          const idx = (y * 600 + x) * 4;
-
-          if (smoothData[idx + 3] > 100) {
-            const center = smoothData[idx + 3];
-
-            // Kernel sharpening sederhana
-            const top = smoothData[((y - 1) * 600 + x) * 4 + 3];
-            const bottom = smoothData[((y + 1) * 600 + x) * 4 + 3];
-            const left = smoothData[(y * 600 + (x - 1)) * 4 + 3];
-            const right = smoothData[(y * 600 + (x + 1)) * 4 + 3];
-
-            const avgNeighbor = (top + bottom + left + right) / 4;
-            const sharpened = center + (center - avgNeighbor) * 0.2;
-
-            finalData[idx + 3] = Math.min(255, Math.max(0, sharpened));
-          }
-        }
-      }
-
-      // Terapkan hasil akhir
-      const finalImageData = new ImageData(finalData, 600, 300);
-      tempCtx.putImageData(finalImageData, 0, 0);
-    }
-
-    // Return PNG dengan kualitas tinggi maksimal
-    return tempCanvas.toDataURL("image/png", 1.0);
-  };
 
   useEffect(() => {
     fetch(`${endpoint}?action=schoolData`)
@@ -272,10 +146,11 @@ const SchoolDataTab: React.FC<{
           setSchoolData(record);
           setNamaKepsek(record.namaKepsek);
           setNipKepsek(record.nipKepsek);
-          setTtdKepsek(record.ttdKepsek);
+          // UBAH: Gunakan ttdKepsekMix dan ttdGuruMix untuk ditampilkan
+          setTtdKepsek(record.ttdKepsekMix);
           setNamaGuru(record.namaGuru);
           setNipGuru(record.nipGuru);
-          setTtdGuru(record.ttdGuru);
+          setTtdGuru(record.ttdGuruMix);
         } else {
           setSchoolData(null);
         }
@@ -296,13 +171,14 @@ const SchoolDataTab: React.FC<{
 
     setIsSaving(true);
 
-    const data: SchoolData = {
+    // ✅ PERBAIKAN: Gunakan struktur interface yang baru
+    const data = {
       namaKepsek,
       nipKepsek,
-      ttdKepsek: ttdKepsek || "",
+      ttdKepsek: ttdKepsek || "", // Kirim sebagai ttdKepsek (untuk backward compatibility dengan Apps Script)
       namaGuru,
       nipGuru,
-      ttdGuru: ttdGuru || "",
+      ttdGuru: ttdGuru || "", // Kirim sebagai ttdGuru (untuk backward compatibility dengan Apps Script)
     };
 
     fetch(endpoint, {
@@ -334,43 +210,23 @@ const SchoolDataTab: React.FC<{
   };
 
   const handleSaveKepsekSignature = () => {
-    if (!kepsekSigCanvas.current) return;
-
-    if (kepsekSigCanvas.current.isEmpty()) {
+    const signature = kepsekSigCanvas.current?.toDataURL("image/png");
+    if (signature && !kepsekSigCanvas.current?.isEmpty()) {
+      setTtdKepsek(signature);
+      setIsKepsekSigning(false);
+    } else {
       alert("⚠️ Tanda tangan kepala sekolah kosong!");
-      return;
     }
-
-    // Gunakan fungsi kompresi
-    const optimizedSignature = compressSignature(kepsekSigCanvas.current);
-
-    // Log ukuran untuk monitoring
-    console.log(
-      `Ukuran tanda tangan Kepsek: ${optimizedSignature.length} karakter`
-    );
-
-    setTtdKepsek(optimizedSignature);
-    setIsKepsekSigning(false);
   };
 
   const handleSaveGuruSignature = () => {
-    if (!guruSigCanvas.current) return;
-
-    if (guruSigCanvas.current.isEmpty()) {
+    const signature = guruSigCanvas.current?.toDataURL("image/png");
+    if (signature && !guruSigCanvas.current?.isEmpty()) {
+      setTtdGuru(signature);
+      setIsGuruSigning(false);
+    } else {
       alert("⚠️ Tanda tangan guru kosong!");
-      return;
     }
-
-    // Gunakan fungsi kompresi
-    const optimizedSignature = compressSignature(guruSigCanvas.current);
-
-    // Log ukuran untuk monitoring
-    console.log(
-      `Ukuran tanda tangan Guru: ${optimizedSignature.length} karakter`
-    );
-
-    setTtdGuru(optimizedSignature);
-    setIsGuruSigning(false);
   };
 
   const handleStartKepsekSigning = () => {
@@ -1923,7 +1779,6 @@ const MonthlyRecapTab: React.FC<{
       "Sakit",
       "% Hadir",
     ];
-
     const body = filteredRecapData.map((item, index) => [
       index + 1, // Nomor urut
       item.nama || "N/A",
@@ -2011,83 +1866,86 @@ const MonthlyRecapTab: React.FC<{
     // Update currentY after the table
     currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // Add school data (Principal and Teacher details) - IMPROVED VERSION
+    // Add school data (Principal and Teacher details)
     if (schoolData) {
       doc.setFontSize(10);
       doc.setFont("Times", "roman");
 
-      // Add place and date above signatures, centered
+      // Add place and date above Guru Kelas, centered
       const formattedDate = new Date(selectedDate).toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "long",
         year: "numeric",
       });
       const placeDateText = `${placeName}, ${formattedDate}`;
-      const rightColumnX = pageWidth - margin - 60; // Adjust for signature width
-      doc.text(placeDateText, rightColumnX + 30, currentY, {
+      const rightColumnX = pageWidth - margin - 50; // Signature width is 50
+      doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
         align: "center",
       });
-      currentY += 8; // Space after date
+      currentY += 5; // Keep close to "Guru Kelas"
 
-      // Calculate positions for two columns
-      const leftColumnX = margin + 10;
-      const signatureSpacing = 25; // Space for signature
+      // Principal Section
+      const principalText = [
+        "Kepala Sekolah,",
+        "",
+        "",
+        `( ${schoolData.namaKepsek || "N/A"} )`,
+        `NIP: ${schoolData.nipKepsek || "N/A"}`,
+      ];
+      const teacherText = [
+        "Guru Kelas,",
+        "",
+        "",
+        `( ${schoolData.namaGuru || "N/A"} )`,
+        `NIP: ${schoolData.nipGuru || "N/A"}`,
+      ];
 
-      // LEFT COLUMN - Principal
-      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
-        align: "center",
-      });
+      // Calculate width for signatures
+      const signatureWidth = 30;
+      const signatureHeight = 20;
+      const leftColumnX = margin;
 
-      // Principal signature (positioned below "Kepala Sekolah," text)
-      if (schoolData.ttdKepsek) {
-        const cleanKepsekData = validateImageData(schoolData.ttdKepsek);
-        if (cleanKepsekData) {
-          try {
-            doc.addImage(
-              cleanKepsekData,
-              "PNG",
-              leftColumnX + 5, // X position (slightly left of center)
-              currentY + 3, // Y position (below "Kepala Sekolah,")
-              40, // Width
-              20 // Height
-            );
-          } catch (error) {
-            console.warn("Error adding Kepsek signature to PDF:", error);
-            doc.setFontSize(8);
-            doc.text(
-              "(Tanda tangan digital tersimpan)",
-              leftColumnX + 25,
-              currentY + 12,
-              {
-                align: "center",
-              }
-            );
-            doc.setFontSize(10);
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.text("", leftColumnX + 25, currentY + 12, {
-            align: "center",
-          });
-          doc.setFontSize(10);
-        }
+      // Principal signature and text
+      if (schoolData.ttdKepsekMix) {
+        doc.addImage(
+          schoolData.ttdKepsekMix, // UBAH: gunakan ttdKepsekMix
+          "PNG",
+          leftColumnX + 10,
+          currentY - 3,
+          signatureWidth,
+          signatureHeight
+        );
       }
 
-      // Principal name (positioned below signature)
+      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
+        align: "center",
+      });
+
+      // Kosong dan kosong
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama kepala sekolah dengan format bold dan underline
       const principalName = schoolData.namaKepsek || "N/A";
       doc.setFont("Times", "bold");
-      doc.text(principalName, leftColumnX + 25, currentY + signatureSpacing, {
+      doc.text(principalName, leftColumnX + 25, currentY + 3.5 * lineSpacing, {
         align: "center",
       });
 
       // Add underline to principal name
-      const principalTextWidth = doc.getTextWidth(principalName);
-      const principalTextX = leftColumnX + 25 - principalTextWidth / 2;
+      const principalNameText = principalName;
+      const textWidth = doc.getTextWidth(principalNameText);
+      const textX = leftColumnX + 25 - textWidth / 2;
       doc.line(
-        principalTextX,
-        currentY + signatureSpacing + 1,
-        principalTextX + principalTextWidth,
-        currentY + signatureSpacing + 1
+        textX,
+        currentY + 3.5 * lineSpacing + 1,
+        textX + textWidth,
+        currentY + 3.5 * lineSpacing + 1
       );
 
       // Reset font and add NIP
@@ -2095,75 +1953,61 @@ const MonthlyRecapTab: React.FC<{
       doc.text(
         `NIP. ${schoolData.nipKepsek || "N/A"}`,
         leftColumnX + 25,
-        currentY + signatureSpacing + 5,
+        currentY + 4.5 * lineSpacing,
         {
           align: "center",
         }
       );
 
-      // RIGHT COLUMN - Teacher
-      doc.text("Guru Kelas,", rightColumnX + 30, currentY, {
+      // Teacher signature and text
+      if (schoolData.ttdGuruMix) {
+        doc.addImage(
+          schoolData.ttdGuruMix, // UBAH: gunakan ttdGuruMix
+          "PNG",
+          rightColumnX + 10,
+          currentY - 5,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+
+      // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY - 2, {
         align: "center",
       });
 
-      // Teacher signature (positioned below "Guru Kelas," text)
-      if (schoolData.ttdGuru) {
-        const cleanGuruData = validateImageData(schoolData.ttdGuru);
-        if (cleanGuruData) {
-          try {
-            doc.addImage(
-              cleanGuruData,
-              "PNG",
-              rightColumnX + 10, // X position (slightly left of center)
-              currentY + 3, // Y position (below "Guru Kelas,")
-              40, // Width
-              20 // Height
-            );
-          } catch (error) {
-            console.warn("Error adding Guru signature to PDF:", error);
-            doc.setFontSize(8);
-            doc.text(
-              "(Tanda tangan digital tersimpan)",
-              rightColumnX + 30,
-              currentY + 12,
-              {
-                align: "center",
-              }
-            );
-            doc.setFontSize(10);
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.text("", rightColumnX + 30, currentY + 12, {
-            align: "center",
-          });
-          doc.setFontSize(10);
-        }
-      }
+      // Kosong dan kosong
+      doc.text("", rightColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
 
-      // Teacher name (positioned below signature)
+      // Nama guru dengan format bold dan underline
       const teacherName = schoolData.namaGuru || "N/A";
       doc.setFont("Times", "bold");
-      doc.text(teacherName, rightColumnX + 30, currentY + signatureSpacing, {
+      doc.text(teacherName, rightColumnX + 25, currentY + 3.5 * lineSpacing, {
         align: "center",
       });
 
       // Add underline to teacher name
-      const teacherTextWidth = doc.getTextWidth(teacherName);
-      const teacherTextX = rightColumnX + 30 - teacherTextWidth / 2;
+      const teacherNameText = teacherName;
+      const teacherTextWidth = doc.getTextWidth(teacherNameText);
+      const teacherTextX = rightColumnX + 25 - teacherTextWidth / 2;
       doc.line(
         teacherTextX,
-        currentY + signatureSpacing + 1,
+        currentY + 3.5 * lineSpacing + 1,
         teacherTextX + teacherTextWidth,
-        currentY + signatureSpacing + 1
+        currentY + 3.5 * lineSpacing + 1
       );
 
       // Reset font and add NIP
       doc.setFont("Times", "roman");
       doc.text(
         `NIP. ${schoolData.nipGuru || "N/A"}`,
-        rightColumnX + 30,
-        currentY + signatureSpacing + 5,
+        rightColumnX + 25,
+        currentY + 4.5 * lineSpacing,
         {
           align: "center",
         }
@@ -2173,7 +2017,6 @@ const MonthlyRecapTab: React.FC<{
       doc.text("Data sekolah tidak tersedia.", margin, currentY);
     }
 
-    // Generate filename and save
     const date = new Date()
       .toLocaleString("id-ID", {
         day: "2-digit",
@@ -3323,14 +3166,12 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
     doc.setFont("Times", "roman");
 
-    // Header/Title
     const title = `REKAP ABSENSI SISWA KELAS ${selectedKelas} SEMESTER ${selectedSemester} 2025`;
     doc.setFontSize(14);
     doc.setFont("Times", "bold");
     doc.text(title, pageWidth / 2, currentY, { align: "center" });
     currentY += 10;
 
-    // Table headers and data
     const headers = [
       "No.",
       "Nama",
@@ -3341,9 +3182,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "Sakit",
       "% Hadir",
     ];
-
     const body = filteredRecapData.map((item, index) => [
-      index + 1,
+      index + 1, // Nomor urut
       item.nama || "N/A",
       item.kelas || "N/A",
       item.hadir || 0,
@@ -3353,7 +3193,6 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
     ]);
 
-    // Total and percentage rows
     const totalRow = [
       "",
       "TOTAL",
@@ -3364,7 +3203,6 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       statusSummary.Sakit,
       "",
     ];
-
     const percentRow = [
       "",
       "PERSEN",
@@ -3404,7 +3242,6 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       "",
     ];
 
-    // Generate table
     autoTable(doc, {
       head: [headers],
       body: [...body, totalRow, percentRow],
@@ -3417,7 +3254,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 10 }, // No.
+        0: { cellWidth: 10 }, // No. (sempit)
         1: { cellWidth: 50 }, // Nama
         2: { cellWidth: 20 }, // Kelas
         3: { cellWidth: 20 }, // Hadir
@@ -3430,83 +3267,82 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
     currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // Add school data (Principal and Teacher details) - IMPROVED VERSION
     if (schoolData) {
       doc.setFontSize(10);
       doc.setFont("Times", "roman");
 
-      // Add place and date above signatures, centered
       const formattedDate = new Date(selectedDate).toLocaleDateString("id-ID", {
         day: "2-digit",
         month: "long",
         year: "numeric",
       });
       const placeDateText = `${placeName}, ${formattedDate}`;
-      const rightColumnX = pageWidth - margin - 60; // Adjust for signature width
-      doc.text(placeDateText, rightColumnX + 30, currentY, {
+      const rightColumnX = pageWidth - margin - 50;
+      doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
         align: "center",
       });
-      currentY += 8; // Space after date
+      currentY += 5;
 
-      // Calculate positions for two columns
-      const leftColumnX = margin + 10;
-      const signatureSpacing = 25; // Space for signature
+      const principalText = [
+        "Kepala Sekolah,",
+        "",
+        "",
+        `( ${schoolData.namaKepsek || "N/A"} )`,
+        `NIP: ${schoolData.nipKepsek || "N/A"}`,
+      ];
+      const teacherText = [
+        "Guru Kelas,",
+        "",
+        "",
+        `( ${schoolData.namaGuru || "N/A"} )`,
+        `NIP: ${schoolData.nipGuru || "N/A"}`,
+      ];
 
-      // LEFT COLUMN - Principal
-      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY, {
-        align: "center",
-      });
+      const signatureWidth = 30;
+      const signatureHeight = 20;
+      const leftColumnX = margin;
 
-      // Principal signature (positioned below "Kepala Sekolah," text)
-      if (schoolData.ttdKepsek) {
-        const cleanKepsekData = validateImageData(schoolData.ttdKepsek);
-        if (cleanKepsekData) {
-          try {
-            doc.addImage(
-              cleanKepsekData,
-              "PNG",
-              leftColumnX + 5, // X position (slightly left of center)
-              currentY + 3, // Y position (below "Kepala Sekolah,")
-              40, // Width
-              20 // Height
-            );
-          } catch (error) {
-            console.warn("Error adding Kepsek signature to PDF:", error);
-            doc.setFontSize(8);
-            doc.text(
-              "(Tanda tangan digital tersimpan)",
-              leftColumnX + 25,
-              currentY + 12,
-              {
-                align: "center",
-              }
-            );
-            doc.setFontSize(10);
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.text("", leftColumnX + 25, currentY + 12, {
-            align: "center",
-          });
-          doc.setFontSize(10);
-        }
+      // Principal signature and text
+      if (schoolData.ttdKepsekMix) {
+        doc.addImage(
+          schoolData.ttdKepsekMix, // UBAH: gunakan ttdKepsekMix
+          "PNG",
+          leftColumnX + 10,
+          currentY - 3,
+          signatureWidth,
+          signatureHeight
+        );
       }
 
-      // Principal name (positioned below signature)
+      // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
+        align: "center",
+      });
+
+      // Kosong dan kosong
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      // Nama kepala sekolah dengan format bold dan underline
       const principalName = schoolData.namaKepsek || "N/A";
       doc.setFont("Times", "bold");
-      doc.text(principalName, leftColumnX + 25, currentY + signatureSpacing, {
+      doc.text(principalName, leftColumnX + 25, currentY + 3.5 * lineSpacing, {
         align: "center",
       });
 
       // Add underline to principal name
-      const principalTextWidth = doc.getTextWidth(principalName);
-      const principalTextX = leftColumnX + 25 - principalTextWidth / 2;
+      const principalNameText = principalName;
+      const textWidth = doc.getTextWidth(principalNameText);
+      const textX = leftColumnX + 25 - textWidth / 2;
       doc.line(
-        principalTextX,
-        currentY + signatureSpacing + 1,
-        principalTextX + principalTextWidth,
-        currentY + signatureSpacing + 1
+        textX,
+        currentY + 3.5 * lineSpacing + 1,
+        textX + textWidth,
+        currentY + 3.5 * lineSpacing + 1
       );
 
       // Reset font and add NIP
@@ -3514,75 +3350,61 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       doc.text(
         `NIP. ${schoolData.nipKepsek || "N/A"}`,
         leftColumnX + 25,
-        currentY + signatureSpacing + 5,
+        currentY + 4.5 * lineSpacing,
         {
           align: "center",
         }
       );
 
-      // RIGHT COLUMN - Teacher
-      doc.text("Guru Kelas,", rightColumnX + 30, currentY, {
+      // Teacher signature and text
+      if (schoolData.ttdGuruMix) {
+        doc.addImage(
+          schoolData.ttdGuruMix, // UBAH: gunakan ttdGuruMix
+          "PNG",
+          rightColumnX + 10,
+          currentY - 5,
+          signatureWidth,
+          signatureHeight
+        );
+      }
+
+      // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY - 2, {
         align: "center",
       });
 
-      // Teacher signature (positioned below "Guru Kelas," text)
-      if (schoolData.ttdGuru) {
-        const cleanGuruData = validateImageData(schoolData.ttdGuru);
-        if (cleanGuruData) {
-          try {
-            doc.addImage(
-              cleanGuruData,
-              "PNG",
-              rightColumnX + 10, // X position (slightly left of center)
-              currentY + 3, // Y position (below "Guru Kelas,")
-              40, // Width
-              20 // Height
-            );
-          } catch (error) {
-            console.warn("Error adding Guru signature to PDF:", error);
-            doc.setFontSize(8);
-            doc.text(
-              "(Tanda tangan digital tersimpan)",
-              rightColumnX + 30,
-              currentY + 12,
-              {
-                align: "center",
-              }
-            );
-            doc.setFontSize(10);
-          }
-        } else {
-          doc.setFontSize(8);
-          doc.text("", rightColumnX + 30, currentY + 12, {
-            align: "center",
-          });
-          doc.setFontSize(10);
-        }
-      }
+      // Kosong dan kosong
+      doc.text("", rightColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
 
-      // Teacher name (positioned below signature)
+      // Nama guru dengan format bold dan underline
       const teacherName = schoolData.namaGuru || "N/A";
       doc.setFont("Times", "bold");
-      doc.text(teacherName, rightColumnX + 30, currentY + signatureSpacing, {
+      doc.text(teacherName, rightColumnX + 25, currentY + 3.5 * lineSpacing, {
         align: "center",
       });
 
       // Add underline to teacher name
-      const teacherTextWidth = doc.getTextWidth(teacherName);
-      const teacherTextX = rightColumnX + 30 - teacherTextWidth / 2;
+      const teacherNameText = teacherName;
+      const teacherTextWidth = doc.getTextWidth(teacherNameText);
+      const teacherTextX = rightColumnX + 25 - teacherTextWidth / 2;
       doc.line(
         teacherTextX,
-        currentY + signatureSpacing + 1,
+        currentY + 3.5 * lineSpacing + 1,
         teacherTextX + teacherTextWidth,
-        currentY + signatureSpacing + 1
+        currentY + 3.5 * lineSpacing + 1
       );
 
       // Reset font and add NIP
       doc.setFont("Times", "roman");
       doc.text(
         `NIP. ${schoolData.nipGuru || "N/A"}`,
-        rightColumnX + 30,
-        currentY + signatureSpacing + 5,
+        rightColumnX + 25,
+        currentY + 4.5 * lineSpacing,
         {
           align: "center",
         }
@@ -3592,7 +3414,6 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       doc.text("Data sekolah tidak tersedia.", margin, currentY);
     }
 
-    // Generate filename and save
     const date = new Date()
       .toLocaleString("id-ID", {
         day: "2-digit",
@@ -4072,7 +3893,7 @@ const SplashScreen: React.FC = () => {
         className="w-52 h-70 mb-4 animate-pulse-custom" //Pengaturan ukuran logo
       />
       <p className="text-gray-800 text-lg font-semibold mt-6">
-        Tunggu Sebentar
+        Setiawan Utama Jaya, S.Pd
       </p>
     </div>
   );
