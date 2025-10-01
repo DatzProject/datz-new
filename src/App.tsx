@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Canvg } from "canvg"; // Install via npm install canvg
 import SignatureCanvas from "react-signature-canvas";
 import {
   Chart as ChartJS,
@@ -28,7 +29,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbw5R2MiBebnel8er-tM9ML9AHWpcA5AMvYtDF_mdIV7hnfmoHewHH5idCYSD3nM7m6F/exec";
+  "https://script.google.com/macros/s/AKfycbxq2xHXlZdE6EAXIGD7aXhBPdZgLuGBgPXtQiLjzBWhd1gYCaroKQS7nUbXI9AnQpPK/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -42,14 +43,10 @@ interface Student {
 interface SchoolData {
   namaKepsek: string;
   nipKepsek: string;
-  ttdKepsek1: string; // TAMBAH
-  ttdKepsek2: string; // TAMBAH
-  ttdKepsekMix: string; // TAMBAH
+  ttdKepsek: string;
   namaGuru: string;
   nipGuru: string;
-  ttdGuru1: string; // TAMBAH
-  ttdGuru2: string; // TAMBAH
-  ttdGuruMix: string; // TAMBAH
+  ttdGuru: string;
 }
 
 type AttendanceStatus = "Hadir" | "Izin" | "Sakit" | "Alpha";
@@ -146,11 +143,10 @@ const SchoolDataTab: React.FC<{
           setSchoolData(record);
           setNamaKepsek(record.namaKepsek);
           setNipKepsek(record.nipKepsek);
-          // UBAH: Gunakan ttdKepsekMix dan ttdGuruMix untuk ditampilkan
-          setTtdKepsek(record.ttdKepsekMix);
+          setTtdKepsek(record.ttdKepsek);
           setNamaGuru(record.namaGuru);
           setNipGuru(record.nipGuru);
-          setTtdGuru(record.ttdGuruMix);
+          setTtdGuru(record.ttdGuru);
         } else {
           setSchoolData(null);
         }
@@ -169,16 +165,15 @@ const SchoolDataTab: React.FC<{
       return;
     }
 
-    setIsSaving(true);
+    setIsSaving(true); // Set saving state to true
 
-    // ✅ PERBAIKAN: Gunakan struktur interface yang baru
-    const data = {
+    const data: SchoolData = {
       namaKepsek,
       nipKepsek,
-      ttdKepsek: ttdKepsek || "", // Kirim sebagai ttdKepsek (untuk backward compatibility dengan Apps Script)
+      ttdKepsek: ttdKepsek || "",
       namaGuru,
       nipGuru,
-      ttdGuru: ttdGuru || "", // Kirim sebagai ttdGuru (untuk backward compatibility dengan Apps Script)
+      ttdGuru: ttdGuru || "",
     };
 
     fetch(endpoint, {
@@ -193,11 +188,11 @@ const SchoolDataTab: React.FC<{
       .then(() => {
         alert("✅ Data sekolah berhasil diperbarui!");
         onRefresh();
-        setIsSaving(false);
+        setIsSaving(false); // Reset saving state on success
       })
       .catch(() => {
         alert("❌ Gagal memperbarui data sekolah.");
-        setIsSaving(false);
+        setIsSaving(false); // Reset saving state on error
       });
   };
 
@@ -210,7 +205,7 @@ const SchoolDataTab: React.FC<{
   };
 
   const handleSaveKepsekSignature = () => {
-    const signature = kepsekSigCanvas.current?.toDataURL("image/png");
+    const signature = kepsekSigCanvas.current?.toDataURL("image/svg+xml"); // Ubah ke SVG
     if (signature && !kepsekSigCanvas.current?.isEmpty()) {
       setTtdKepsek(signature);
       setIsKepsekSigning(false);
@@ -220,7 +215,7 @@ const SchoolDataTab: React.FC<{
   };
 
   const handleSaveGuruSignature = () => {
-    const signature = guruSigCanvas.current?.toDataURL("image/png");
+    const signature = guruSigCanvas.current?.toDataURL("image/svg+xml"); // Ubah ke SVG
     if (signature && !guruSigCanvas.current?.isEmpty()) {
       setTtdGuru(signature);
       setIsGuruSigning(false);
@@ -1751,7 +1746,8 @@ const MonthlyRecapTab: React.FC<{
     XLSX.writeFile(wb, fileName);
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
+    // Tambahkan async untuk await
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
@@ -1906,15 +1902,32 @@ const MonthlyRecapTab: React.FC<{
       const leftColumnX = margin;
 
       // Principal signature and text
-      if (schoolData.ttdKepsekMix) {
-        doc.addImage(
-          schoolData.ttdKepsekMix, // UBAH: gunakan ttdKepsekMix
-          "PNG",
-          leftColumnX + 10,
-          currentY - 3,
-          signatureWidth,
-          signatureHeight
-        );
+      if (schoolData.ttdKepsek) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150; // Sesuaikan ukuran canvas (lebar lebih besar untuk tanda tangan panjang)
+          canvas.height = 50; // Sesuaikan ukuran canvas (tinggi cukup untuk garis tanda tangan)
+          const ctx = canvas.getContext("2d");
+          const v = await Canvg.from(ctx, schoolData.ttdKepsek); // schoolData.ttdKepsek adalah base64 SVG
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            leftColumnX + 10,
+            currentY - 3,
+            signatureWidth,
+            signatureHeight
+          ); // Sesuaikan posisi sesuai asli
+        } catch (error) {
+          console.error("Error rendering Kepsek signature:", error);
+          doc.setFontSize(10);
+          doc.text(
+            "Gagal render tanda tangan Kepala Sekolah.",
+            leftColumnX + 10,
+            currentY - 3 + 10
+          );
+        }
       }
 
       // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
@@ -1960,15 +1973,32 @@ const MonthlyRecapTab: React.FC<{
       );
 
       // Teacher signature and text
-      if (schoolData.ttdGuruMix) {
-        doc.addImage(
-          schoolData.ttdGuruMix, // UBAH: gunakan ttdGuruMix
-          "PNG",
-          rightColumnX + 10,
-          currentY - 5,
-          signatureWidth,
-          signatureHeight
-        );
+      if (schoolData.ttdGuru) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150; // Sesuaikan ukuran canvas
+          canvas.height = 50;
+          const ctx = canvas.getContext("2d");
+          const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            rightColumnX + 10,
+            currentY - 5,
+            signatureWidth,
+            signatureHeight
+          ); // Sesuaikan posisi sesuai asli
+        } catch (error) {
+          console.error("Error rendering Guru signature:", error);
+          doc.setFontSize(10);
+          doc.text(
+            "Gagal render tanda tangan Guru.",
+            rightColumnX + 10,
+            currentY - 5 + 10
+          );
+        }
       }
 
       // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
@@ -3303,9 +3333,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       const leftColumnX = margin;
 
       // Principal signature and text
-      if (schoolData.ttdKepsekMix) {
+      if (schoolData.ttdKepsek) {
         doc.addImage(
-          schoolData.ttdKepsekMix, // UBAH: gunakan ttdKepsekMix
+          schoolData.ttdKepsek,
           "PNG",
           leftColumnX + 10,
           currentY - 3,
@@ -3357,9 +3387,9 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       );
 
       // Teacher signature and text
-      if (schoolData.ttdGuruMix) {
+      if (schoolData.ttdGuru) {
         doc.addImage(
-          schoolData.ttdGuruMix, // UBAH: gunakan ttdGuruMix
+          schoolData.ttdGuru,
           "PNG",
           rightColumnX + 10,
           currentY - 5,
