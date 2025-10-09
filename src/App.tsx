@@ -1615,135 +1615,141 @@ const MonthlyRecapTab: React.FC<{
   const statusSummary = getStatusSummary();
 
   const downloadExcel = () => {
-    const headers = [
-      "No.",
-      "Nama",
-      "Kelas",
-      "Hadir",
-      "Alpha",
-      "Izin",
-      "Sakit",
-      "% Hadir",
-    ];
-    const data = [
-      headers,
-      ...filteredRecapData.map((item, index) => [
-        index + 1, // Nomor urut
-        item.nama || "N/A",
-        item.kelas || "N/A",
-        item.hadir || 0,
-        item.alpa || 0,
-        item.izin || 0,
-        item.sakit || 0,
-        item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
-      ]),
-      [
-        "",
-        "TOTAL",
-        "",
-        statusSummary.Hadir,
-        statusSummary.Alpha,
-        statusSummary.Izin,
-        statusSummary.Sakit,
-        "",
-      ],
-      [
-        "",
-        "PERSEN",
-        "",
-        `${(
-          (statusSummary.Hadir /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Alpha /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Izin /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Sakit /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        "",
-      ],
-    ];
+    try {
+      const headers = [
+        "No.",
+        "Nama",
+        "Kelas",
+        "Hadir",
+        "Alpha",
+        "Izin",
+        "Sakit",
+        "% Hadir",
+      ];
+      const data = [
+        headers,
+        ...filteredRecapData.map((item, index) => [
+          index + 1,
+          item.nama || "N/A",
+          item.kelas || "N/A",
+          item.hadir || 0,
+          item.alpa || 0,
+          item.izin || 0,
+          item.sakit || 0,
+          item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
+        ]),
+        [
+          "",
+          "TOTAL",
+          "",
+          statusSummary.Hadir,
+          statusSummary.Alpha,
+          statusSummary.Izin,
+          statusSummary.Sakit,
+          "",
+        ],
+        [
+          "",
+          "PERSEN",
+          "",
+          `${(
+            (statusSummary.Hadir /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Alpha /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Izin /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Sakit /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          "",
+        ],
+      ];
 
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = [
-      { wch: 5 }, // Lebar kolom No. (sempit)
-      { wch: 25 }, // Nama
-      { wch: 10 }, // Kelas
-      { wch: 10 }, // Hadir
-      { wch: 10 }, // Alpha
-      { wch: 10 }, // Izin
-      { wch: 10 }, // Sakit
-      { wch: 10 }, // % Hadir
-    ];
-    const headerStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "FFFF00" } },
-      alignment: { horizontal: "center" },
-    };
-    const totalStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "D3D3D3" } },
-      alignment: { horizontal: "center" },
-    };
-    const percentStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "D3D3D3" } },
-      alignment: { horizontal: "center" },
-    };
-    headers.forEach((header, index) => {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
-      ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
-    });
-    const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
-      const cellAddress = `${col}${totalRow}`;
-      ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
-    });
-    const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
-      const cellAddress = `${col}${percentRow}`;
-      ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
-    });
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [
+        { wch: 5 },
+        { wch: 25 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+      ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rekap Bulanan");
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap Bulanan");
 
-    const date = new Date()
-      .toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })
-      .replace(/ /g, "_")
-      .replace(/:/g, "-");
-    const fileName = `Rekap_Bulanan_${selectedBulan}_${selectedKelas}_${date}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+      const date = new Date()
+        .toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+        .replace(/ /g, "_")
+        .replace(/:/g, "-");
+      const fileName = `Rekap_Bulanan_${selectedBulan}_${selectedKelas}_${date}.xlsx`;
+
+      // Buat blob dari workbook
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Cek apakah browser mendukung download langsung
+      if (window.navigator && (window.navigator as any).msSaveOrOpenBlob) {
+        // IE & Edge
+        (window.navigator as any).msSaveOrOpenBlob(blob, fileName);
+      } else {
+        // Browser modern & Mobile
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.style.display = "none";
+
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }
+
+      // Tampilkan notifikasi sukses
+      alert("✅ File Excel berhasil diunduh!");
+    } catch (error) {
+      console.error("Error saat download Excel:", error);
+      alert("❌ Gagal mengunduh file Excel. Silakan coba lagi.");
+    }
   };
 
   const downloadPDF = async () => {
