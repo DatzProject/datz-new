@@ -1986,6 +1986,7 @@ const MonthlyRecapTab: React.FC<{
           canvas.width = 150; // Sesuaikan ukuran canvas
           canvas.height = 50;
           const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
           const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
           v.start();
           const pngData = canvas.toDataURL("image/png");
