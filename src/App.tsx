@@ -1914,6 +1914,7 @@ const MonthlyRecapTab: React.FC<{
           canvas.width = 150; // Sesuaikan ukuran canvas (lebar lebih besar untuk tanda tangan panjang)
           canvas.height = 50; // Sesuaikan ukuran canvas (tinggi cukup untuk garis tanda tangan)
           const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
           const v = await Canvg.from(ctx, schoolData.ttdKepsek); // schoolData.ttdKepsek adalah base64 SVG
           v.start();
           const pngData = canvas.toDataURL("image/png");
@@ -1985,6 +1986,7 @@ const MonthlyRecapTab: React.FC<{
           canvas.width = 150; // Sesuaikan ukuran canvas
           canvas.height = 50;
           const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
           const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
           v.start();
           const pngData = canvas.toDataURL("image/png");
@@ -3063,137 +3065,145 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
   const statusSummary = getStatusSummary();
 
   const downloadExcel = () => {
-    const headers = [
-      "No.",
-      "Nama",
-      "Kelas",
-      "Hadir",
-      "Alpha",
-      "Izin",
-      "Sakit",
-      "% Hadir",
-    ];
-    const data = [
-      headers,
-      ...filteredRecapData.map((item, index) => [
-        index + 1, // Nomor urut
-        item.nama || "N/A",
-        item.kelas || "N/A",
-        item.hadir || 0,
-        item.alpa || 0,
-        item.izin || 0,
-        item.sakit || 0,
-        item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
-      ]),
-      [
-        "",
-        "TOTAL",
-        "",
-        statusSummary.Hadir,
-        statusSummary.Alpha,
-        statusSummary.Izin,
-        statusSummary.Sakit,
-        "",
-      ],
-      [
-        "",
-        "PERSEN",
-        "",
-        `${(
-          (statusSummary.Hadir /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Alpha /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Izin /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        `${(
-          (statusSummary.Sakit /
-            (statusSummary.Hadir +
-              statusSummary.Alpha +
-              statusSummary.Izin +
-              statusSummary.Sakit)) *
-          100
-        ).toFixed(2)}%`,
-        "",
-      ],
-    ];
+    try {
+      const headers = [
+        "No.",
+        "Nama",
+        "Kelas",
+        "Hadir",
+        "Alpha",
+        "Izin",
+        "Sakit",
+        "% Hadir",
+      ];
+      const data = [
+        headers,
+        ...filteredRecapData.map((item, index) => [
+          index + 1,
+          item.nama || "N/A",
+          item.kelas || "N/A",
+          item.hadir || 0,
+          item.alpa || 0,
+          item.izin || 0,
+          item.sakit || 0,
+          item.persenHadir !== undefined ? `${item.persenHadir}%` : "N/A",
+        ]),
+        [
+          "",
+          "TOTAL",
+          "",
+          statusSummary.Hadir,
+          statusSummary.Alpha,
+          statusSummary.Izin,
+          statusSummary.Sakit,
+          "",
+        ],
+        [
+          "",
+          "PERSEN",
+          "",
+          `${(
+            (statusSummary.Hadir /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Alpha /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Izin /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          `${(
+            (statusSummary.Sakit /
+              (statusSummary.Hadir +
+                statusSummary.Alpha +
+                statusSummary.Izin +
+                statusSummary.Sakit)) *
+            100
+          ).toFixed(2)}%`,
+          "",
+        ],
+      ];
 
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = [
-      { wch: 5 }, // Lebar kolom No. (sempit)
-      { wch: 25 }, // Nama
-      { wch: 10 }, // Kelas
-      { wch: 10 }, // Hadir
-      { wch: 10 }, // Alpha
-      { wch: 10 }, // Izin
-      { wch: 10 }, // Sakit
-      { wch: 10 }, // % Hadir
-    ];
-    const headerStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "FFFF00" } },
-      alignment: { horizontal: "center" },
-    };
-    const totalStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "D3D3D3" } },
-      alignment: { horizontal: "center" },
-    };
-    const percentStyle = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: "D3D3D3" } },
-      alignment: { horizontal: "center" },
-    };
-    headers.forEach((header, index) => {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: index });
-      ws[cellAddress] = { ...ws[cellAddress], s: headerStyle };
-    });
-    const totalRow = filteredRecapData.length + 1;
-    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
-      const cellAddress = `${col}${totalRow}`;
-      ws[cellAddress] = { ...ws[cellAddress], s: totalStyle };
-    });
-    const percentRow = filteredRecapData.length + 2;
-    ["A", "B", "C", "D", "E", "F", "G", "H"].forEach((col, idx) => {
-      const cellAddress = `${col}${percentRow}`;
-      ws[cellAddress] = { ...ws[cellAddress], s: percentStyle };
-    });
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      ws["!cols"] = [
+        { wch: 5 },
+        { wch: 25 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 10 },
+      ];
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Rekap Semester");
-    const date = new Date()
-      .toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })
-      .replace(/ /g, "_")
-      .replace(/:/g, "-");
-    const fileName = `Rekap_Semester_${selectedSemester}_${selectedKelas}_${date}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Rekap Semester");
+
+      const date = new Date()
+        .toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+        .replace(/ /g, "_")
+        .replace(/:/g, "-");
+      const fileName = `Rekap_Semester_${selectedSemester}_${selectedKelas}_${date}.xlsx`;
+
+      // Buat blob dari workbook
+      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      // Cek apakah browser mendukung download langsung
+      if (window.navigator && (window.navigator as any).msSaveOrOpenBlob) {
+        // IE & Edge
+        (window.navigator as any).msSaveOrOpenBlob(blob, fileName);
+      } else {
+        // Browser modern & Mobile
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.style.display = "none";
+
+        document.body.appendChild(link);
+        link.click();
+
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }
+
+      // Tampilkan notifikasi sukses
+      alert("✅ File Excel berhasil diunduh!");
+    } catch (error) {
+      console.error("Error saat download Excel:", error);
+      alert("❌ Gagal mengunduh file Excel. Silakan coba lagi.");
+    }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
+    // Tambahkan async untuk await
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
@@ -3202,7 +3212,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
     doc.setFont("Times", "roman");
 
-    const title = `REKAP ABSENSI SISWA KELAS ${selectedKelas} SEMESTER ${selectedSemester} 2025`;
+    const title = `REKAP ABSENSI SISWA KELAS ${selectedKelas} ${selectedSemester.toUpperCase()} 2024`;
     doc.setFontSize(14);
     doc.setFont("Times", "bold");
     doc.text(title, pageWidth / 2, currentY, { align: "center" });
@@ -3239,6 +3249,7 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       statusSummary.Sakit,
       "",
     ];
+
     const percentRow = [
       "",
       "PERSEN",
@@ -3313,11 +3324,11 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
         year: "numeric",
       });
       const placeDateText = `${placeName}, ${formattedDate}`;
-      const rightColumnX = pageWidth - margin - 50;
+      const rightColumnX = pageWidth - margin - 50; // Signature width is 50
       doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
         align: "center",
       });
-      currentY += 5;
+      currentY += 5; // Keep close to "Guru Kelas"
 
       const principalText = [
         "Kepala Sekolah,",
@@ -3340,14 +3351,32 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
       // Principal signature and text
       if (schoolData.ttdKepsek) {
-        doc.addImage(
-          schoolData.ttdKepsek,
-          "PNG",
-          leftColumnX + 10,
-          currentY - 3,
-          signatureWidth,
-          signatureHeight
-        );
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150; // Sesuaikan ukuran canvas (lebar lebih besar untuk tanda tangan panjang)
+          canvas.height = 50; // Sesuaikan ukuran canvas (tinggi cukup untuk garis tanda tangan)
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
+          const v = await Canvg.from(ctx, schoolData.ttdKepsek); // schoolData.ttdKepsek adalah base64 SVG
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            leftColumnX + 10,
+            currentY - 3,
+            signatureWidth,
+            signatureHeight
+          ); // Sesuaikan posisi sesuai asli
+        } catch (error) {
+          console.error("Error rendering Kepsek signature:", error);
+          doc.setFontSize(10);
+          doc.text(
+            "Gagal render tanda tangan Kepala Sekolah.",
+            leftColumnX + 10,
+            currentY - 3 + 10
+          );
+        }
       }
 
       // Pisahkan "Kepala Sekolah" dengan posisi yang lebih tinggi
@@ -3394,14 +3423,32 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
 
       // Teacher signature and text
       if (schoolData.ttdGuru) {
-        doc.addImage(
-          schoolData.ttdGuru,
-          "PNG",
-          rightColumnX + 10,
-          currentY - 5,
-          signatureWidth,
-          signatureHeight
-        );
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150; // Sesuaikan ukuran canvas
+          canvas.height = 50;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
+          const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            rightColumnX + 10,
+            currentY - 5,
+            signatureWidth,
+            signatureHeight
+          ); // Sesuaikan posisi sesuai asli
+        } catch (error) {
+          console.error("Error rendering Guru signature:", error);
+          doc.setFontSize(10);
+          doc.text(
+            "Gagal render tanda tangan Guru.",
+            rightColumnX + 10,
+            currentY - 5 + 10
+          );
+        }
       }
 
       // Pisahkan "Guru Kelas" dengan posisi yang lebih tinggi
@@ -3946,6 +3993,7 @@ const StudentAttendanceApp: React.FC = () => {
     | "graph"
     | "history"
     | "semesterRecap"
+    | "daftarHadir"
     | "clearData"
   >("studentData");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -4038,6 +4086,7 @@ const StudentAttendanceApp: React.FC = () => {
           { tab: "semesterRecap", label: "📚 Rekap Semester" },
           { tab: "graph", label: "📈 Grafik" },
           { tab: "history", label: "📜 Riwayat Absen" },
+          { tab: "daftarHadir", label: "📋 Daftar Hadir" },
           { tab: "clearData", label: "🗑️ Hapus Data" },
         ].map(({ tab, label }) => (
           <button
@@ -4133,9 +4182,359 @@ const StudentAttendanceApp: React.FC = () => {
           {activeTab === "semesterRecap" && (
             <SemesterRecapTab uniqueClasses={uniqueClasses} />
           )}
+          {activeTab === "daftarHadir" && (
+            <DaftarHadirTab students={students} uniqueClasses={uniqueClasses} />
+          )}
           {activeTab === "clearData" && <ClearDataTab />}
         </div>
       </main>
+    </div>
+  );
+};
+
+const DaftarHadirTab: React.FC<{
+  students: Student[];
+  uniqueClasses: string[];
+}> = ({ students, uniqueClasses }) => {
+  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
+  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    new Date().getMonth() + 1
+  ); // 1-12
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear()
+  );
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const months = [
+    { value: 1, label: "Januari" },
+    { value: 2, label: "Februari" },
+    { value: 3, label: "Maret" },
+    { value: 4, label: "April" },
+    { value: 5, label: "Mei" },
+    { value: 6, label: "Juni" },
+    { value: 7, label: "Juli" },
+    { value: 8, label: "Agustus" },
+    { value: 9, label: "September" },
+    { value: 10, label: "Oktober" },
+    { value: 11, label: "November" },
+    { value: 12, label: "Desember" },
+  ];
+
+  const years = Array.from({ length: 11 }, (_, i) => 2020 + i); // 2020-2030, sesuaikan jika perlu
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`${endpoint}?action=attendanceHistory`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          console.log("=== RAW DATA FROM SERVER ===");
+          console.log("Total records:", data.data.length);
+
+          // Log sample data
+          if (data.data.length > 0) {
+            console.log("Sample records (first 5):");
+            data.data.slice(0, 5).forEach((record: any, index: number) => {
+              console.log(`Record ${index}:`, {
+                tanggal: record.tanggal,
+                nama: record.nama,
+                kelas: record.kelas,
+                nisn: record.nisn,
+                status: record.status,
+              });
+            });
+          }
+
+          // Filter data yang valid
+          const validData = filterValidAttendance(data.data || []);
+          console.log("Valid records after filter:", validData.length);
+
+          // Cek unique NISN dalam data
+          const uniqueNISN = new Set(
+            validData.map((r) => String(r.nisn || "").trim())
+          );
+          console.log(
+            "Unique NISN in attendance data:",
+            Array.from(uniqueNISN)
+          );
+
+          // Cek unique tanggal
+          const uniqueDates = new Set(validData.map((r) => r.tanggal));
+          console.log("Unique dates:", Array.from(uniqueDates).sort());
+
+          setAttendanceData(validData);
+        } else {
+          alert("❌ Gagal memuat data absensi: " + data.message);
+          setAttendanceData([]);
+        }
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetch:", error);
+        alert("❌ Gagal memuat data absensi. Cek console untuk detail.");
+        setLoading(false);
+      });
+  }, []);
+
+  // Filter siswa berdasarkan kelas
+  const filteredStudents = React.useMemo(() => {
+    const result =
+      selectedKelas === "Semua"
+        ? students
+        : students.filter(
+            (student) => String(student.kelas).trim() === selectedKelas
+          );
+
+    console.log("=== FILTERED STUDENTS ===");
+    console.log("Selected Kelas:", selectedKelas);
+    console.log("Total students:", result.length);
+    if (result.length > 0) {
+      console.log("Sample students (first 3):");
+      result.slice(0, 3).forEach((s, i) => {
+        console.log(`Student ${i}:`, {
+          name: s.name,
+          nisn: s.nisn,
+          kelas: s.kelas,
+        });
+      });
+    }
+
+    return result;
+  }, [students, selectedKelas]);
+
+  // Hitung jumlah hari di bulan
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+
+  // Filter data absensi yang valid (tidak ada formula atau error)
+  const filterValidAttendance = (
+    data: AttendanceHistory[]
+  ): AttendanceHistory[] => {
+    return data.filter((record) => {
+      const hasValidTanggal =
+        record.tanggal &&
+        !record.tanggal.toString().startsWith("=") &&
+        /^\d{2}\/\d{2}\/\d{4}$/.test(record.tanggal.toString());
+
+      const hasValidNama =
+        record.nama &&
+        !record.nama.toString().startsWith("=") &&
+        record.nama.toString().trim() !== "";
+
+      const hasValidNisn =
+        record.nisn &&
+        !record.nisn.toString().startsWith("=") &&
+        record.nisn.toString().trim() !== "";
+
+      const hasValidStatus =
+        record.status &&
+        ["Hadir", "Izin", "Sakit", "Alpha"].includes(record.status.toString());
+
+      return hasValidTanggal && hasValidNama && hasValidNisn && hasValidStatus;
+    });
+  };
+
+  // Filter dan map data absensi untuk bulan/tahun/kelas terpilih
+  const getAttendanceForStudent = (student: Student) => {
+    const studentAttendance: { [day: number]: string } = {};
+    let countS = 0,
+      countI = 0,
+      countA = 0;
+
+    attendanceData.forEach((record) => {
+      // Normalisasi NISN dan nama untuk perbandingan yang lebih akurat
+      const recordNisn = String(record.nisn || "").trim();
+      const studentNisn = String(student.nisn || "").trim();
+      const recordNama = String(record.nama || "")
+        .trim()
+        .toLowerCase();
+      const studentNama = String(student.name || "")
+        .trim()
+        .toLowerCase();
+
+      // Cocokkan berdasarkan NISN ATAU nama (karena ada kemungkinan format kelas berbeda)
+      const isMatch = recordNisn === studentNisn || recordNama === studentNama;
+
+      if (isMatch) {
+        // Parse tanggal dari format DD/MM/YYYY
+        const dateParts = record.tanggal.split("/");
+
+        if (dateParts.length === 3) {
+          const day = parseInt(dateParts[0], 10);
+          const month = parseInt(dateParts[1], 10);
+          const year = parseInt(dateParts[2], 10);
+
+          // Cek apakah bulan dan tahun sesuai dengan filter
+          if (month === selectedMonth && year === selectedYear) {
+            let code = "";
+            switch (record.status) {
+              case "Hadir":
+                code = "H";
+                break;
+              case "Izin":
+                code = "I";
+                countI++;
+                break;
+              case "Sakit":
+                code = "S";
+                countS++;
+                break;
+              case "Alpha":
+                code = "A";
+                countA++;
+                break;
+            }
+
+            // Simpan kode kehadiran untuk hari tersebut (yang terakhir akan menimpa jika ada duplikat)
+            if (code) {
+              studentAttendance[day] = code;
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      attendance: studentAttendance,
+      counts: { S: countS, I: countI, A: countA },
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">Memuat data...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
+          📋 Daftar Hadir Siswa
+        </h2>
+        <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
+            <select
+              value={selectedKelas}
+              onChange={(e) => setSelectedKelas(e.target.value)}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {uniqueClasses.map((kelas) => (
+                <option key={kelas} value={kelas}>
+                  {kelas}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Bulan</p>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-2">Tahun</p>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse border border-gray-200">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-2 py-1 text-sm">No ABS</th>
+                <th className="border px-2 py-1 text-sm">No INDUK</th>
+                <th className="border px-2 py-1 text-sm">NAMA</th>
+                {Array.from({ length: daysInMonth }, (_, i) => (
+                  <th key={i} className="border px-1 py-1 text-sm">
+                    {i + 1}
+                  </th>
+                ))}
+                <th className="border px-2 py-1 text-sm" colSpan={3}>
+                  JUMLAH
+                </th>
+              </tr>
+              <tr className="bg-gray-100">
+                <th className="border px-2 py-1 text-sm" colSpan={3}></th>
+                {Array.from({ length: daysInMonth }, (_, i) => (
+                  <th key={i} className="border px-1 py-1 text-sm"></th>
+                ))}
+                <th className="border px-2 py-1 text-sm">S</th>
+                <th className="border px-2 py-1 text-sm">I</th>
+                <th className="border px-2 py-1 text-sm">A</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStudents.map((student, index) => {
+                const { attendance, counts } = getAttendanceForStudent(student);
+
+                // Debug: Log data untuk siswa pertama
+                if (index === 0) {
+                  console.log("Sample student:", student.name);
+                  console.log("Attendance data:", attendance);
+                  console.log("Counts:", counts);
+                }
+
+                return (
+                  <tr
+                    key={student.id}
+                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                  >
+                    <td className="border px-2 py-1 text-sm">{index + 1}</td>
+                    <td className="border px-2 py-1 text-sm">
+                      {student.nisn || "N/A"}
+                    </td>
+                    <td className="border px-2 py-1 text-sm">
+                      {student.name || "N/A"}
+                    </td>
+                    {Array.from({ length: daysInMonth }, (_, day) => (
+                      <td
+                        key={day}
+                        className="border px-1 py-1 text-center text-sm"
+                      >
+                        {attendance[day + 1] || ""}
+                      </td>
+                    ))}
+                    <td className="border px-2 py-1 text-center text-sm">
+                      {counts.S}
+                    </td>
+                    <td className="border px-2 py-1 text-center text-sm">
+                      {counts.I}
+                    </td>
+                    <td className="border px-2 py-1 text-center text-sm">
+                      {counts.A}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
