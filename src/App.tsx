@@ -29,7 +29,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxq2xHXlZdE6EAXIGD7aXhBPdZgLuGBgPXtQiLjzBWhd1gYCaroKQS7nUbXI9AnQpPK/exec";
+  "https://script.google.com/macros/s/AKfycbwPYXA1vJt4Rp5UX6AOzSWw9ZAvAhAfaH7HIiWRAhQkLHvo1vC_b5y8MY6MiD-_5oji/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -96,7 +96,6 @@ interface AttendanceHistory {
   kelas: string;
   nisn: string;
   status: AttendanceStatus;
-  duplikat: string;
 }
 
 interface SemesterRecap {
@@ -112,6 +111,12 @@ interface SemesterRecap {
 const formatDateDDMMYYYY = (isoDate: string): string => {
   const [year, month, day] = isoDate.split("-");
   return `${day}/${month}/${year}`;
+};
+
+type EditedRecord = {
+  date: string;
+  nisn: string;
+  status: AttendanceStatus | "";
 };
 
 const SchoolDataTab: React.FC<{
@@ -1410,6 +1415,36 @@ const AttendanceTab: React.FC<{
               </div>
             </div>
 
+            {isLoadingExistingData && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <svg
+                    className="animate-spin h-5 w-5 text-blue-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <span className="text-blue-700 font-semibold">
+                    ⏳ Mohon tunggu, sedang memuat data absensi...
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 mb-6 overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -1455,13 +1490,15 @@ const AttendanceTab: React.FC<{
                                   onClick={() => setStatus(s.id, status)}
                                   style={{ width: "1cm" }}
                                   className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
-                                    attendance[date]?.[s.id] === status
+                                    isLoadingExistingData
+                                      ? "bg-gray-300 text-gray-400 cursor-not-allowed opacity-50"
+                                      : attendance[date]?.[s.id] === status
                                       ? `${statusColor[status]} text-white`
                                       : isExisting
                                       ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
                                   }`}
-                                  disabled={isExisting}
+                                  disabled={isExisting || isLoadingExistingData}
                                 >
                                   {status}
                                 </button>
@@ -2621,24 +2658,12 @@ const AttendanceHistoryTab: React.FC<{
         !record.status.toString().includes("FORMULA") &&
         ["Hadir", "Izin", "Sakit", "Alpha"].includes(record.status.toString());
 
-      // Tambahkan validasi untuk kolom duplikat: hanya ambil jika nilai eksak "-", dan bukan formula/error
-      const hasValidDuplikat =
-        record.duplikat &&
-        record.duplikat.toString().trim() === "-" && // Hanya ambil jika "-"
-        !record.duplikat.toString().startsWith("=") &&
-        record.duplikat.toString() !== "#N/A" &&
-        record.duplikat.toString() !== "#REF!" &&
-        record.duplikat.toString() !== "#VALUE!" &&
-        record.duplikat.toString() !== "#ERROR!" &&
-        !record.duplikat.toString().includes("FORMULA");
-
       return (
         hasValidTanggal &&
         hasValidNama &&
         hasValidNisn &&
         hasValidKelas &&
-        hasValidStatus &&
-        hasValidDuplikat // Tambahkan ini untuk memfilter berdasarkan duplikat = "-"
+        hasValidStatus
       );
     });
   };
@@ -4205,6 +4230,18 @@ const DaftarHadirTab: React.FC<{
     new Date().getFullYear()
   );
   const [loading, setLoading] = useState<boolean>(true);
+  const [editedRecords, setEditedRecords] = useState<
+    Record<string, EditedRecord>
+  >({});
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(
+    null
+  );
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [placeName, setPlaceName] = useState<string>("Makassar");
 
   const months = [
     { value: 1, label: "Januari" },
@@ -4222,6 +4259,69 @@ const DaftarHadirTab: React.FC<{
   ];
 
   const years = Array.from({ length: 11 }, (_, i) => 2020 + i); // 2020-2030, sesuaikan jika perlu
+
+  const fetchAttendanceData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${endpoint}?action=attendanceHistory`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      if (data.success) {
+        console.log("=== RAW DATA FROM SERVER ===");
+        console.log("Total records:", data.data.length);
+        // Log sample data (tetap jika ingin debug)
+        if (data.data.length > 0) {
+          console.log("Sample records (first 5):");
+          data.data.slice(0, 5).forEach((record: any, index: number) => {
+            console.log(`Record ${index}:`, {
+              tanggal: record.tanggal,
+              nama: record.nama,
+              kelas: record.kelas,
+              nisn: record.nisn,
+              status: record.status,
+            });
+          });
+        }
+        const validData = filterValidAttendance(data.data || []);
+        console.log("Valid records after filter:", validData.length);
+        // Cek unique NISN dan dates (tetap jika ingin debug)
+        const uniqueNISN = new Set(
+          validData.map((r) => String(r.nisn || "").trim())
+        );
+        console.log("Unique NISN in attendance data:", Array.from(uniqueNISN));
+        const uniqueDates = new Set(validData.map((r) => r.tanggal));
+        console.log("Unique dates:", Array.from(uniqueDates).sort());
+        setAttendanceData(validData);
+      } else {
+        alert("❌ Gagal memuat data absensi: " + data.message);
+        setAttendanceData([]);
+      }
+    } catch (error) {
+      console.error("Error fetch:", error);
+      alert("❌ Gagal memuat data absensi. Cek console untuk detail.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetch(`${endpoint}?action=schoolData`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        if (data.success && data.data && data.data.length > 0) {
+          setSchoolData(data.data[0]);
+        } else {
+          setSchoolData(null);
+        }
+      })
+      .catch((error) => {
+        console.error("Error fetching school data:", error);
+        alert("❌ Gagal memuat data sekolah. Cek console untuk detail.");
+      });
+  }, []); // Fetch sekali saat mount
 
   useEffect(() => {
     setLoading(true);
@@ -4337,29 +4437,44 @@ const DaftarHadirTab: React.FC<{
     });
   };
 
-  // Filter dan map data absensi untuk bulan/tahun/kelas terpilih
   const getAttendanceForStudent = (student: Student) => {
     const studentAttendance: { [day: number]: string } = {};
     let countS = 0,
       countI = 0,
       countA = 0;
 
+    console.log(`\n=== Processing ${student.name} (NISN: ${student.nisn}) ===`);
+
+    // Normalisasi NISN siswa
+    const studentNisn = String(student.nisn || "")
+      .trim()
+      .replace(/\s+/g, "")
+      .toUpperCase();
+    const studentNama = String(student.name || "")
+      .trim()
+      .toLowerCase();
+
+    console.log("Normalized Student NISN:", studentNisn);
+    console.log("Normalized Student Name:", studentNama);
+
+    // LANGKAH 1: Ambil data dari attendanceData
     attendanceData.forEach((record) => {
-      // Normalisasi NISN dan nama untuk perbandingan yang lebih akurat
-      const recordNisn = String(record.nisn || "").trim();
-      const studentNisn = String(student.nisn || "").trim();
+      // Normalisasi data record
+      const recordNisn = String(record.nisn || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .toUpperCase();
       const recordNama = String(record.nama || "")
         .trim()
         .toLowerCase();
-      const studentNama = String(student.name || "")
-        .trim()
-        .toLowerCase();
 
-      // Cocokkan berdasarkan NISN ATAU nama (karena ada kemungkinan format kelas berbeda)
-      const isMatch = recordNisn === studentNisn || recordNama === studentNama;
+      // Pencocokan lebih fleksibel
+      const nisnMatch = studentNisn && recordNisn && studentNisn === recordNisn;
+      const nameMatch = studentNama && recordNama && studentNama === recordNama;
+      const isMatch = nisnMatch || nameMatch;
 
       if (isMatch) {
-        // Parse tanggal dari format DD/MM/YYYY
+        // Parse tanggal
         const dateParts = record.tanggal.split("/");
 
         if (dateParts.length === 3) {
@@ -4367,8 +4482,7 @@ const DaftarHadirTab: React.FC<{
           const month = parseInt(dateParts[1], 10);
           const year = parseInt(dateParts[2], 10);
 
-          // Cek apakah bulan dan tahun sesuai dengan filter
-          if (month === selectedMonth && year === selectedYear) {
+          if (month === selectedMonth && year === selectedYear && !isNaN(day)) {
             let code = "";
             switch (record.status) {
               case "Hadir":
@@ -4376,31 +4490,460 @@ const DaftarHadirTab: React.FC<{
                 break;
               case "Izin":
                 code = "I";
-                countI++;
                 break;
               case "Sakit":
                 code = "S";
-                countS++;
                 break;
               case "Alpha":
                 code = "A";
-                countA++;
                 break;
             }
 
-            // Simpan kode kehadiran untuk hari tersebut (yang terakhir akan menimpa jika ada duplikat)
             if (code) {
               studentAttendance[day] = code;
+              console.log(`Found attendance: Day ${day} = ${code}`);
             }
           }
         }
       }
     });
 
+    // LANGKAH 2: Override dengan editedRecords (INI YANG PENTING!)
+    Object.entries(editedRecords).forEach(([key, record]) => {
+      // Parse key format: "studentId_day"
+      const keyParts = key.split("_");
+      if (keyParts.length >= 2 && keyParts[0] === student.id) {
+        const day = parseInt(keyParts[1], 10);
+
+        // Parse date dari record
+        const dateParts = record.date.split("/");
+        if (dateParts.length === 3) {
+          const month = parseInt(dateParts[1], 10);
+          const year = parseInt(dateParts[2], 10);
+
+          if (month === selectedMonth && year === selectedYear && !isNaN(day)) {
+            let code = "";
+            switch (record.status) {
+              case "Hadir":
+                code = "H";
+                break;
+              case "Izin":
+                code = "I";
+                break;
+              case "Sakit":
+                code = "S";
+                break;
+              case "Alpha":
+                code = "A";
+                break;
+            }
+
+            if (code) {
+              studentAttendance[day] = code;
+              console.log(
+                `Applied edit: Day ${day} = ${code} (from editedRecords)`
+              );
+            } else if (record.status === "") {
+              // Jika status kosong, hapus entry
+              delete studentAttendance[day];
+              console.log(`Removed attendance: Day ${day}`);
+            }
+          }
+        }
+      }
+    });
+
+    // LANGKAH 3: Hitung counts dari studentAttendance yang sudah final
+    countS = Object.values(studentAttendance).filter((v) => v === "S").length;
+    countI = Object.values(studentAttendance).filter((v) => v === "I").length;
+    countA = Object.values(studentAttendance).filter((v) => v === "A").length;
+
+    console.log("Final attendance:", studentAttendance);
+    console.log("Counts - S:", countS, "I:", countI, "A:", countA);
+
     return {
       attendance: studentAttendance,
       counts: { S: countS, I: countI, A: countA },
     };
+  };
+
+  const handleStatusChange = (
+    student: Student,
+    day: number,
+    newStatus: AttendanceStatus | ""
+  ) => {
+    console.log(`\n=== Status Change ===`);
+    console.log("Student:", student.name);
+    console.log("Day:", day);
+    console.log("New Status:", newStatus);
+    console.log("Current editedRecords:", editedRecords);
+
+    const key = `${student.id}_${day}`;
+    const dateStr = `${String(day).padStart(2, "0")}/${String(
+      selectedMonth
+    ).padStart(2, "0")}/${selectedYear}`;
+
+    if (newStatus === "") {
+      // Hapus dari editedRecords
+      setEditedRecords((prev) => {
+        const newRecords = { ...prev };
+        delete newRecords[key];
+        console.log("Removed from editedRecords. New state:", newRecords);
+        return newRecords;
+      });
+    } else {
+      // Tambah/update di editedRecords
+      const newRecord = {
+        date: dateStr,
+        nisn: String(student.nisn || ""),
+        status: newStatus,
+      };
+
+      setEditedRecords((prev) => {
+        const newRecords = {
+          ...prev,
+          [key]: newRecord,
+        };
+        console.log("Updated editedRecords. New state:", newRecords);
+        return newRecords;
+      });
+    }
+  };
+
+  const handleSaveChanges = () => {
+    if (Object.keys(editedRecords).length === 0) {
+      alert("⚠️ Tidak ada perubahan untuk disimpan.");
+      return;
+    }
+
+    setIsSaving(true);
+    const updates = Object.values(editedRecords).map((record) => ({
+      tanggal: record.date,
+      nisn: record.nisn,
+      status: record.status,
+    }));
+
+    fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "bulkUpdateAttendance",
+        updates,
+      }),
+    })
+      .then(() => {
+        alert("✅ Perubahan berhasil disimpan!");
+        setEditedRecords({});
+        // Update data absensi secara dinamis tanpa reload halaman
+        fetchAttendanceData();
+      })
+      .catch(() => alert("❌ Gagal menyimpan perubahan."))
+      .finally(() => setIsSaving(false));
+  };
+
+  const handleDeleteStudentAttendance = async (student: Student) => {
+    const confirmMessage = `⚠️ PERINGATAN!\n\nAnda akan menghapus SEMUA riwayat absensi untuk:\n\nNama: ${
+      student.name
+    }\nNISN: ${student.nisn}\nKelas: ${
+      student.kelas
+    }\n\nData yang akan dihapus:\n- Semua riwayat kehadiran di bulan ${
+      months.find((m) => m.value === selectedMonth)?.label
+    } ${selectedYear}\n- Data di sheet "Absensi" di Google Sheets\n\nTindakan ini TIDAK DAPAT DIBATALKAN!\n\nApakah Anda yakin?`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingStudentId(student.id);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deleteStudentAttendanceByName",
+          nama: student.name,
+          bulan: selectedMonth,
+          tahun: selectedYear,
+        }),
+      });
+
+      alert(`✅ Riwayat absensi ${student.name} berhasil dihapus!`);
+
+      // Hapus data dari state lokal
+      setAttendanceData((prev) =>
+        prev.filter((record) => record.nama !== student.name)
+      );
+
+      // Hapus editedRecords untuk siswa ini
+      setEditedRecords((prev) => {
+        const newRecords = { ...prev };
+        Object.keys(newRecords).forEach((key) => {
+          if (key.startsWith(`${student.id}_`)) {
+            delete newRecords[key];
+          }
+        });
+        return newRecords;
+      });
+
+      // Refresh data dari server
+      fetchAttendanceData();
+    } catch (error) {
+      console.error("Error deleting student attendance:", error);
+      alert("❌ Gagal menghapus riwayat absensi. Silakan coba lagi.");
+    } finally {
+      setDeletingStudentId(null);
+    }
+  };
+
+  const downloadPDF = async () => {
+    const doc = new jsPDF("landscape"); // Landscape untuk muat banyak kolom
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const lineSpacing = 5;
+    let currentY = margin;
+
+    doc.setFont("Times", "roman");
+
+    // Title
+    const monthLabel =
+      months.find((m) => m.value === selectedMonth)?.label || "";
+    const title = `DAFTAR HADIR SISWA KELAS ${selectedKelas} ${monthLabel.toUpperCase()} ${selectedYear}`;
+    doc.setFontSize(14);
+    doc.setFont("Times", "bold");
+    doc.text(title, pageWidth / 2, currentY, { align: "center" });
+    currentY += 10;
+
+    // Headers: Multi-row dengan rowspan untuk kolom awal dan hari, colspan untuk JUMLAH
+    const headers = [
+      [
+        { content: "No ABS", rowSpan: 2 }, // Rowspan 2 (merge vertikal)
+        { content: "No INDUK", rowSpan: 2 },
+        { content: "NAMA", rowSpan: 2 },
+        ...Array.from({ length: daysInMonth }, (_, i) => ({
+          content: (i + 1).toString(),
+          rowSpan: 2,
+        })),
+        { content: "JUMLAH", colSpan: 3, styles: { halign: "center" } }, // Colspan 3 untuk JUMLAH
+      ],
+      [
+        "S", // Sub-header di bawah JUMLAH
+        "I",
+        "A",
+      ],
+    ];
+
+    // Body data
+    const body = filteredStudents.map((student, index) => {
+      const { attendance, counts } = getAttendanceForStudent(student);
+      return [
+        index + 1,
+        student.nisn || "N/A",
+        student.name || "N/A",
+        ...Array.from(
+          { length: daysInMonth },
+          (_, day) => attendance[day + 1] || "-"
+        ),
+        counts.S,
+        counts.I,
+        counts.A,
+      ];
+    });
+
+    // Render tabel
+    autoTable(doc, {
+      head: headers, // Multi-row head dengan rowspan/colspan
+      body: body,
+      startY: currentY,
+      theme: "grid", // Tambah theme: 'grid' untuk garis pemisah tiap kolom dan baris
+      styles: { font: "Times", fontSize: 8, cellPadding: 2 },
+      headStyles: {
+        fillColor: [255, 255, 0],
+        textColor: [0, 0, 0],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      columnStyles: {
+        0: { cellWidth: 10 }, // No ABS
+        1: { cellWidth: 20 }, // No INDUK
+        2: { cellWidth: 50 }, // NAMA
+        // Kolom hari: lebar kecil (5)
+        ...Array.from({ length: daysInMonth }, (_, i) => ({
+          [i + 3]: { cellWidth: 5 },
+        })),
+        // S, I, A: lebar 10 (akan di-cover colspan JUMLAH)
+        [3 + daysInMonth]: { cellWidth: 10 },
+        [4 + daysInMonth]: { cellWidth: 10 },
+        [5 + daysInMonth]: { cellWidth: 10 },
+      },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 10;
+
+    // Footer: School data, place, date, signatures (tetap sama)
+    if (schoolData) {
+      doc.setFontSize(10);
+      doc.setFont("Times", "roman");
+
+      const formattedDate = new Date(selectedDate).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+      const placeDateText = `${placeName}, ${formattedDate}`;
+      const rightColumnX = pageWidth - margin - 50;
+      doc.text(placeDateText, rightColumnX + 25, currentY - 1, {
+        align: "center",
+      });
+      currentY += 5;
+
+      const signatureWidth = 30;
+      const signatureHeight = 20;
+      const leftColumnX = margin;
+
+      // Principal signature
+      if (schoolData.ttdKepsek) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150;
+          canvas.height = 50;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
+          const v = await Canvg.from(ctx, schoolData.ttdKepsek);
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            leftColumnX + 10,
+            currentY - 3,
+            signatureWidth,
+            signatureHeight
+          );
+        } catch (error) {
+          console.error("Error rendering Kepsek signature:", error);
+          doc.text(
+            "Gagal render tanda tangan Kepala Sekolah.",
+            leftColumnX + 10,
+            currentY - 3 + 10
+          );
+        }
+      }
+
+      doc.text("Kepala Sekolah,", leftColumnX + 25, currentY - 2, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", leftColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      const principalName = schoolData.namaKepsek || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(principalName, leftColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      const textWidth = doc.getTextWidth(principalName);
+      const textX = leftColumnX + 25 - textWidth / 2;
+      doc.line(
+        textX,
+        currentY + 3.5 * lineSpacing + 1,
+        textX + textWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipKepsek || "N/A"}`,
+        leftColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        { align: "center" }
+      );
+
+      // Teacher signature
+      if (schoolData.ttdGuru) {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 150;
+          canvas.height = 50;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Failed to get canvas context");
+          const v = await Canvg.from(ctx, schoolData.ttdGuru);
+          v.start();
+          const pngData = canvas.toDataURL("image/png");
+          doc.addImage(
+            pngData,
+            "PNG",
+            rightColumnX + 10,
+            currentY - 5,
+            signatureWidth,
+            signatureHeight
+          );
+        } catch (error) {
+          console.error("Error rendering Guru signature:", error);
+          doc.text(
+            "Gagal render tanda tangan Guru.",
+            rightColumnX + 10,
+            currentY - 5 + 10
+          );
+        }
+      }
+
+      doc.text("Guru Kelas,", rightColumnX + 25, currentY - 2, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + lineSpacing, {
+        align: "center",
+      });
+      doc.text("", rightColumnX + 25, currentY + 2 * lineSpacing, {
+        align: "center",
+      });
+
+      const teacherName = schoolData.namaGuru || "N/A";
+      doc.setFont("Times", "bold");
+      doc.text(teacherName, rightColumnX + 25, currentY + 3.5 * lineSpacing, {
+        align: "center",
+      });
+
+      const teacherTextWidth = doc.getTextWidth(teacherName);
+      const teacherTextX = rightColumnX + 25 - teacherTextWidth / 2;
+      doc.line(
+        teacherTextX,
+        currentY + 3.5 * lineSpacing + 1,
+        teacherTextX + teacherTextWidth,
+        currentY + 3.5 * lineSpacing + 1
+      );
+
+      doc.setFont("Times", "roman");
+      doc.text(
+        `NIP. ${schoolData.nipGuru || "N/A"}`,
+        rightColumnX + 25,
+        currentY + 4.5 * lineSpacing,
+        { align: "center" }
+      );
+    } else {
+      doc.setFontSize(10);
+      doc.text("Data sekolah tidak tersedia.", margin, currentY);
+    }
+
+    const date = new Date()
+      .toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(/ /g, "_")
+      .replace(/:/g, "-");
+    const fileName = `Daftar_Hadir_${selectedKelas}_${monthLabel}_${selectedYear}_${date}.pdf`;
+    doc.save(fileName);
   };
 
   if (loading) {
@@ -4462,16 +5005,47 @@ const DaftarHadirTab: React.FC<{
           </div>
         </div>
 
+        {/* Separator line and PDF settings section */}
+        <div className="border-t border-gray-200 pt-4 mb-6">
+          <p className="text-center text-sm font-medium text-gray-700 mb-4">
+            Pengaturan Tanggal & Nama Tempat <br /> untuk Daftar Hadir pada File
+            PDF
+          </p>
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Pilih Tanggal</p>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">Nama Tempat</p>
+              <input
+                type="text"
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                placeholder="Masukkan nama tempat"
+                className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse border border-gray-200">
             <thead>
               <tr className="bg-gray-100">
+                <th className="border px-2 py-1 text-sm">Aksi</th>
                 <th className="border px-2 py-1 text-sm">No ABS</th>
                 <th className="border px-2 py-1 text-sm">No INDUK</th>
                 <th className="border px-2 py-1 text-sm">NAMA</th>
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm">
-                    {i + 1}
+                    {i + 1}{" "}
+                    {/* Edit: Hanya nomor hari saja, tanpa bulan/tahun */}
                   </th>
                 ))}
                 <th className="border px-2 py-1 text-sm" colSpan={3}>
@@ -4479,7 +5053,8 @@ const DaftarHadirTab: React.FC<{
                 </th>
               </tr>
               <tr className="bg-gray-100">
-                <th className="border px-2 py-1 text-sm" colSpan={3}></th>
+                <th className="border px-2 py-1 text-sm" colSpan={4}></th>{" "}
+                {/* Colspan 4 untuk Aksi + No ABS + No INDUK + NAMA */}
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm"></th>
                 ))}
@@ -4491,19 +5066,27 @@ const DaftarHadirTab: React.FC<{
             <tbody>
               {filteredStudents.map((student, index) => {
                 const { attendance, counts } = getAttendanceForStudent(student);
-
-                // Debug: Log data untuk siswa pertama
-                if (index === 0) {
-                  console.log("Sample student:", student.name);
-                  console.log("Attendance data:", attendance);
-                  console.log("Counts:", counts);
-                }
+                const isDeleting = deletingStudentId === student.id;
 
                 return (
                   <tr
                     key={student.id}
                     className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                   >
+                    <td className="border px-2 py-1 text-center">
+                      <button
+                        onClick={() => handleDeleteStudentAttendance(student)}
+                        disabled={isDeleting || isSaving}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                          isDeleting || isSaving
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-red-500 hover:bg-red-600 text-white"
+                        }`}
+                        title={`Hapus semua riwayat absensi ${student.name}`}
+                      >
+                        {isDeleting ? "⏳" : "🗑️"}
+                      </button>
+                    </td>
                     <td className="border px-2 py-1 text-sm">{index + 1}</td>
                     <td className="border px-2 py-1 text-sm">
                       {student.nisn || "N/A"}
@@ -4511,14 +5094,105 @@ const DaftarHadirTab: React.FC<{
                     <td className="border px-2 py-1 text-sm">
                       {student.name || "N/A"}
                     </td>
-                    {Array.from({ length: daysInMonth }, (_, day) => (
-                      <td
-                        key={day}
-                        className="border px-1 py-1 text-center text-sm"
-                      >
-                        {attendance[day + 1] || ""}
-                      </td>
-                    ))}
+                    {Array.from({ length: daysInMonth }, (_, day) => {
+                      const currentValue = attendance[day + 1] || "";
+                      const key = `${student.id}_${day + 1}`;
+                      const isEdited = editedRecords[key] !== undefined;
+
+                      const getFullStatus = (
+                        code: string
+                      ): AttendanceStatus | "" => {
+                        switch (code) {
+                          case "H":
+                            return "Hadir";
+                          case "I":
+                            return "Izin";
+                          case "S":
+                            return "Sakit";
+                          case "A":
+                            return "Alpha";
+                          default:
+                            return "";
+                        }
+                      };
+
+                      const getColorClass = (code: string) => {
+                        switch (code) {
+                          case "H":
+                            return "text-green-600 hover:bg-green-50";
+                          case "I":
+                            return "text-yellow-600 hover:bg-yellow-50";
+                          case "S":
+                            return "text-blue-600 hover:bg-blue-50";
+                          case "A":
+                            return "text-red-600 hover:bg-red-50";
+                          default:
+                            return "text-gray-400 hover:bg-gray-50";
+                        }
+                      };
+
+                      return (
+                        <td
+                          key={day}
+                          className={`border px-1 py-1 text-center text-sm ${
+                            isEdited ? "bg-yellow-100" : ""
+                          }`}
+                        >
+                          <select
+                            value={
+                              editedRecords[key]?.status || // Prioritaskan edited
+                              getFullStatus(currentValue) // Fallback ke existing
+                            }
+                            onChange={(e) => {
+                              const newStatus = e.target.value as
+                                | AttendanceStatus
+                                | "";
+                              console.log("Select onChange triggered:", {
+                                student: student.name,
+                                day: day + 1,
+                                newStatus,
+                                currentValue,
+                              });
+                              handleStatusChange(student, day + 1, newStatus);
+                            }}
+                            className={`w-full text-center text-sm font-bold cursor-pointer appearance-none bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-1 py-0.5 transition-colors ${getColorClass(
+                              editedRecords[key]?.status
+                                ? editedRecords[key].status === "Hadir"
+                                  ? "H"
+                                  : editedRecords[key].status === "Izin"
+                                  ? "I"
+                                  : editedRecords[key].status === "Sakit"
+                                  ? "S"
+                                  : editedRecords[key].status === "Alpha"
+                                  ? "A"
+                                  : ""
+                                : currentValue
+                            )}`}
+                            disabled={isSaving}
+                            style={{
+                              textAlign: "center",
+                              textAlignLast: "center",
+                              WebkitAppearance: "none",
+                              MozAppearance: "none",
+                            }}
+                          >
+                            <option value="">-</option>
+                            <option value="Hadir" style={{ color: "#059669" }}>
+                              H - Hadir
+                            </option>
+                            <option value="Izin" style={{ color: "#D97706" }}>
+                              I - Izin
+                            </option>
+                            <option value="Sakit" style={{ color: "#2563EB" }}>
+                              S - Sakit
+                            </option>
+                            <option value="Alpha" style={{ color: "#DC2626" }}>
+                              A - Alpha
+                            </option>
+                          </select>
+                        </td>
+                      );
+                    })}
                     <td className="border px-2 py-1 text-center text-sm">
                       {counts.S}
                     </td>
@@ -4533,6 +5207,42 @@ const DaftarHadirTab: React.FC<{
               })}
             </tbody>
           </table>
+          {Object.keys(editedRecords).length > 0 && (
+            <div className="mt-6 flex justify-center gap-4">
+              <button
+                onClick={handleSaveChanges}
+                disabled={isSaving}
+                className={`px-6 py-2 rounded-lg font-medium text-white ${
+                  isSaving
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {isSaving
+                  ? "⏳ Menyimpan..."
+                  : `💾 Simpan Perubahan (${
+                      Object.keys(editedRecords).length
+                    })`}
+              </button>
+              <button
+                onClick={() => setEditedRecords({})}
+                disabled={isSaving}
+                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium"
+              >
+                ❌ Batal
+              </button>
+            </div>
+          )}
+          <div className="mt-6 flex justify-center gap-4">
+            {" "}
+            {/* mt-6 ini bisa disesuaikan jika terlalu jauh */}
+            <button
+              onClick={downloadPDF}
+              className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            >
+              📄 Download PDF
+            </button>
+          </div>
         </div>
       </div>
     </div>
