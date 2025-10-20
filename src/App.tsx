@@ -4719,20 +4719,20 @@ const DaftarHadirTab: React.FC<{
     // Headers: Multi-row dengan rowspan untuk kolom awal dan hari, colspan untuk JUMLAH
     const headers = [
       [
-        { content: "No ABS", rowSpan: 2 }, // Rowspan 2 (merge vertikal)
+        { content: "No ABS", rowSpan: 2 },
         { content: "No INDUK", rowSpan: 2 },
         { content: "NAMA", rowSpan: 2 },
         ...Array.from({ length: daysInMonth }, (_, i) => ({
           content: (i + 1).toString(),
           rowSpan: 2,
         })),
-        { content: "JUMLAH", colSpan: 3, styles: { halign: "center" } }, // Colspan 3 untuk JUMLAH
+        {
+          content: "JUMLAH",
+          colSpan: 3,
+          styles: { halign: "center" as const },
+        }, // <- TAMBAHKAN 'as const'
       ],
-      [
-        "S", // Sub-header di bawah JUMLAH
-        "I",
-        "A",
-      ],
+      ["S", "I", "A"],
     ];
 
     // Body data
@@ -4769,11 +4769,14 @@ const DaftarHadirTab: React.FC<{
         0: { cellWidth: 10 }, // No ABS
         1: { cellWidth: 20 }, // No INDUK
         2: { cellWidth: 50 }, // NAMA
-        // Kolom hari: lebar kecil (5)
-        ...Array.from({ length: daysInMonth }, (_, i) => ({
-          [i + 3]: { cellWidth: 5 },
-        })),
-        // S, I, A: lebar 10 (akan di-cover colspan JUMLAH)
+        // Kolom hari: lebar kecil (5) - MENGGUNAKAN Object.assign
+        ...Object.assign(
+          {},
+          ...Array.from({ length: daysInMonth }, (_, i) => ({
+            [i + 3]: { cellWidth: 5 },
+          }))
+        ),
+        // S, I, A: lebar 10
         [3 + daysInMonth]: { cellWidth: 10 },
         [4 + daysInMonth]: { cellWidth: 10 },
         [5 + daysInMonth]: { cellWidth: 10 },
