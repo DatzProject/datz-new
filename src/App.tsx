@@ -29,7 +29,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbxeA5AkG0iwNgR4daG3OxXw2U2a3ItmowZJenwQij0UNvEmzC-4b45uknHRVxrzOKh2YA/exec";
+  "https://script.google.com/macros/s/AKfycbxhq9pjz1Z1CyVuFB6Mv3yJmtEBYhju3SGKAcJ8mIanygfPdolqMcOk2A0tG05MHVanjQ/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -4242,6 +4242,8 @@ const DaftarHadirTab: React.FC<{
     new Date().toISOString().split("T")[0]
   );
   const [placeName, setPlaceName] = useState<string>("Makassar");
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showModal, setShowModal] = useState<boolean>(false);
 
   const months = [
     { value: 1, label: "Januari" },
@@ -4584,13 +4586,62 @@ const DaftarHadirTab: React.FC<{
     ).padStart(2, "0")}/${selectedYear}`;
 
     if (newStatus === "") {
-      // Hapus dari editedRecords
-      setEditedRecords((prev) => {
-        const newRecords = { ...prev };
-        delete newRecords[key];
-        console.log("Removed from editedRecords. New state:", newRecords);
-        return newRecords;
+      // Cek apakah ada data asli dari attendanceData
+      const hasOriginalData = attendanceData.some((record) => {
+        const studentNisn = String(student.nisn || "")
+          .trim()
+          .replace(/\s+/g, "")
+          .toUpperCase();
+        const studentNama = String(student.name || "")
+          .trim()
+          .toLowerCase();
+        const recordNisn = String(record.nisn || "")
+          .trim()
+          .replace(/\s+/g, "")
+          .toUpperCase();
+        const recordNama = String(record.nama || "")
+          .trim()
+          .toLowerCase();
+
+        const isMatch =
+          (studentNisn && recordNisn && studentNisn === recordNisn) ||
+          (studentNama && recordNama && studentNama === recordNama);
+
+        if (isMatch) {
+          const dateParts = record.tanggal.split("/");
+          if (dateParts.length === 3) {
+            const recordDay = parseInt(dateParts[0], 10);
+            const recordMonth = parseInt(dateParts[1], 10);
+            const recordYear = parseInt(dateParts[2], 10);
+            return (
+              recordDay === day &&
+              recordMonth === selectedMonth &&
+              recordYear === selectedYear
+            );
+          }
+        }
+        return false;
       });
+
+      if (hasOriginalData) {
+        // Jika ada data asli, tandai untuk dihapus dengan status kosong
+        setEditedRecords((prev) => ({
+          ...prev,
+          [key]: {
+            date: dateStr,
+            nisn: String(student.nisn || ""),
+            status: "", // Status kosong = hapus
+          },
+        }));
+      } else {
+        // Jika tidak ada data asli, hapus dari editedRecords
+        setEditedRecords((prev) => {
+          const newRecords = { ...prev };
+          delete newRecords[key];
+          console.log("Removed from editedRecords. New state:", newRecords);
+          return newRecords;
+        });
+      }
     } else {
       // Tambah/update di editedRecords
       const newRecord = {
@@ -4958,6 +5009,16 @@ const DaftarHadirTab: React.FC<{
     doc.save(fileName);
   };
 
+  const handleNameClick = (student: Student) => {
+    setSelectedStudent(student);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedStudent(null);
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -5046,14 +5107,84 @@ const DaftarHadirTab: React.FC<{
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse border border-gray-200">
+        <div className="overflow-auto relative" style={{ maxHeight: "70vh" }}>
+          <style>{`
+  .attendance-table thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #f3f4f6;
+  }
+  
+  .attendance-table thead tr:last-child th {
+    position: sticky;
+    top: 33px;
+    z-index: 30;
+    background: #f3f4f6;
+  }
+  
+  .attendance-table th.freeze-no,
+  .attendance-table td.freeze-no {
+    position: sticky;
+    left: 0;
+    z-index: 25;
+    background: #f3f4f6 !important;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  }
+  
+  .attendance-table td.freeze-no {
+    background: white !important;
+  }
+  
+  .attendance-table tbody tr:nth-child(even) td.freeze-no {
+    background: #f9fafb !important;
+  }
+  
+  .attendance-table th.freeze-nama,
+  .attendance-table td.freeze-nama {
+    position: sticky;
+    left: 30px;
+    z-index: 25;
+    background: #f3f4f6 !important;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    cursor: pointer;
+    min-width: 100px;
+  }
+  
+  .attendance-table td.freeze-nama {
+    background: white !important;
+  }
+  
+  .attendance-table td.freeze-nama:hover {
+    background: #dbeafe !important;
+  }
+  
+  .attendance-table tbody tr:nth-child(even) td.freeze-nama {
+    background: #f9fafb !important;
+  }
+  
+  .attendance-table tbody tr:nth-child(even) td.freeze-nama:hover {
+    background: #dbeafe !important;
+  }
+  
+  .attendance-table thead tr:first-child th.freeze-no,
+  .attendance-table thead tr:last-child th.freeze-no {
+    z-index: 40;
+    background: #f3f4f6 !important;
+  }
+  
+  .attendance-table thead tr:first-child th.freeze-nama,
+  .attendance-table thead tr:last-child th.freeze-nama {
+    z-index: 40;
+    background: #f3f4f6 !important;
+  }
+`}</style>
+
+          <table className="attendance-table min-w-full border-collapse border border-gray-200">
             <thead>
               <tr className="bg-gray-100">
-                <th className="border px-2 py-1 text-sm">Aksi</th>
-                <th className="border px-2 py-1 text-sm">No ABS</th>
-                <th className="border px-2 py-1 text-sm">No INDUK</th>
-                <th className="border px-2 py-1 text-sm">NAMA</th>
+                <th className="freeze-no border px-2 py-1 text-sm">No</th>
+                <th className="freeze-nama border px-2 py-1 text-sm">NAMA</th>
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm">
                     {String(i + 1).padStart(2, "0")}
@@ -5064,8 +5195,8 @@ const DaftarHadirTab: React.FC<{
                 </th>
               </tr>
               <tr className="bg-gray-100">
-                <th className="border px-2 py-1 text-sm" colSpan={4}></th>{" "}
-                {/* Colspan 4 untuk Aksi + No ABS + No INDUK + NAMA */}
+                <th className="freeze-no border px-2 py-1 text-sm"></th>
+                <th className="freeze-nama border px-2 py-1 text-sm"></th>
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm"></th>
                 ))}
@@ -5077,32 +5208,20 @@ const DaftarHadirTab: React.FC<{
             <tbody>
               {filteredStudents.map((student, index) => {
                 const { attendance, counts } = getAttendanceForStudent(student);
-                const isDeleting = deletingStudentId === student.id;
 
                 return (
                   <tr
                     key={student.id}
                     className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                   >
-                    <td className="border px-2 py-1 text-center">
-                      <button
-                        onClick={() => handleDeleteStudentAttendance(student)}
-                        disabled={isDeleting || isSaving}
-                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                          isDeleting || isSaving
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-red-500 hover:bg-red-600 text-white"
-                        }`}
-                        title={`Hapus semua riwayat absensi ${student.name}`}
-                      >
-                        {isDeleting ? "⏳" : "🗑️"}
-                      </button>
+                    <td className="freeze-no border px-2 py-1 text-xs text-center">
+                      {index + 1}
                     </td>
-                    <td className="border px-2 py-1 text-sm">{index + 1}</td>
-                    <td className="border px-2 py-1 text-sm">
-                      {student.nisn || "N/A"}
-                    </td>
-                    <td className="border px-2 py-1 text-sm">
+                    <td
+                      className="freeze-nama border px-2 py-1 text-xs"
+                      onClick={() => handleNameClick(student)}
+                      title="Klik untuk melihat detail"
+                    >
                       {student.name || "N/A"}
                     </td>
                     {Array.from({ length: daysInMonth }, (_, day) => {
@@ -5145,28 +5264,22 @@ const DaftarHadirTab: React.FC<{
                       return (
                         <td
                           key={day}
-                          className={`border px-1 py-1 text-center text-sm ${
+                          className={`border px-1 py-1 text-center text-xs ${
                             isEdited ? "bg-yellow-100" : ""
                           }`}
                         >
                           <select
                             value={
-                              editedRecords[key]?.status || // Prioritaskan edited
-                              getFullStatus(currentValue) // Fallback ke existing
+                              editedRecords[key]?.status ||
+                              getFullStatus(currentValue)
                             }
                             onChange={(e) => {
                               const newStatus = e.target.value as
                                 | AttendanceStatus
                                 | "";
-                              console.log("Select onChange triggered:", {
-                                student: student.name,
-                                day: day + 1,
-                                newStatus,
-                                currentValue,
-                              });
                               handleStatusChange(student, day + 1, newStatus);
                             }}
-                            className={`w-full text-center text-sm font-bold cursor-pointer appearance-none bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-1 py-0.5 transition-colors ${getColorClass(
+                            className={`w-full text-center text-xs font-bold cursor-pointer appearance-none bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-400 rounded px-1 py-0.5 transition-colors ${getColorClass(
                               editedRecords[key]?.status
                                 ? editedRecords[key].status === "Hadir"
                                   ? "H"
@@ -5204,13 +5317,13 @@ const DaftarHadirTab: React.FC<{
                         </td>
                       );
                     })}
-                    <td className="border px-2 py-1 text-center text-sm">
+                    <td className="border px-2 py-1 text-center text-xs">
                       {counts.S}
                     </td>
-                    <td className="border px-2 py-1 text-center text-sm">
+                    <td className="border px-2 py-1 text-center text-xs">
                       {counts.I}
                     </td>
-                    <td className="border px-2 py-1 text-center text-sm">
+                    <td className="border px-2 py-1 text-center text-xs">
                       {counts.A}
                     </td>
                   </tr>
@@ -5256,6 +5369,74 @@ const DaftarHadirTab: React.FC<{
           </div>
         </div>
       </div>
+      {/* Modal Detail Siswa */}
+      {showModal && selectedStudent && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={closeModal}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Detail Siswa</h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex border-b pb-2">
+                <span className="font-semibold text-gray-600 w-24">NISN:</span>
+                <span className="text-gray-800">
+                  {selectedStudent.nisn || "N/A"}
+                </span>
+              </div>
+              <div className="flex border-b pb-2">
+                <span className="font-semibold text-gray-600 w-24">Nama:</span>
+                <span className="text-gray-800">
+                  {selectedStudent.name || "N/A"}
+                </span>
+              </div>
+              <div className="flex border-b pb-2">
+                <span className="font-semibold text-gray-600 w-24">Kelas:</span>
+                <span className="text-gray-800">
+                  {selectedStudent.kelas || "N/A"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  handleDeleteStudentAttendance(selectedStudent);
+                  closeModal();
+                }}
+                disabled={deletingStudentId === selectedStudent.id || isSaving}
+                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  deletingStudentId === selectedStudent.id || isSaving
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-red-500 hover:bg-red-600 text-white"
+                }`}
+              >
+                {deletingStudentId === selectedStudent.id
+                  ? "⏳ Menghapus..."
+                  : "🗑️ Hapus Riwayat Absensi"}
+              </button>
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
