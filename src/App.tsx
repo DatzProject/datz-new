@@ -29,7 +29,7 @@ ChartJS.register(
 );
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbwPYXA1vJt4Rp5UX6AOzSWw9ZAvAhAfaH7HIiWRAhQkLHvo1vC_b5y8MY6MiD-_5oji/exec";
+  "https://script.google.com/macros/s/AKfycbxeA5AkG0iwNgR4daG3OxXw2U2a3ItmowZJenwQij0UNvEmzC-4b45uknHRVxrzOKh2YA/exec";
 const SHEET_SEMESTER1 = "RekapSemester1";
 const SHEET_SEMESTER2 = "RekapSemester2";
 
@@ -4719,7 +4719,7 @@ const DaftarHadirTab: React.FC<{
     // Headers: Multi-row dengan rowspan untuk kolom awal dan hari, colspan untuk JUMLAH
     const headers = [
       [
-        { content: "No ABS", rowSpan: 2 },
+        { content: "No", rowSpan: 2 },
         { content: "No INDUK", rowSpan: 2 },
         { content: "NAMA", rowSpan: 2 },
         ...Array.from({ length: daysInMonth }, (_, i) => ({
@@ -4754,32 +4754,41 @@ const DaftarHadirTab: React.FC<{
 
     // Render tabel
     autoTable(doc, {
-      head: headers, // Multi-row head dengan rowspan/colspan
+      head: headers,
       body: body,
       startY: currentY,
-      theme: "grid", // Tambah theme: 'grid' untuk garis pemisah tiap kolom dan baris
-      styles: { font: "Times", fontSize: 8, cellPadding: 2 },
+      theme: "grid",
+      styles: {
+        font: "Times",
+        fontSize: 6,
+        cellPadding: 1,
+        halign: "center",
+        valign: "middle",
+      },
       headStyles: {
         fillColor: [255, 255, 0],
         textColor: [0, 0, 0],
         fontStyle: "bold",
+        fontSize: 6,
+        halign: "center", // ← TAMBAHKAN INI untuk header rata tengah
+        valign: "middle", // ← TAMBAHKAN INI untuk header rata tengah vertikal
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 10 }, // No ABS
-        1: { cellWidth: 20 }, // No INDUK
-        2: { cellWidth: 50 }, // NAMA
+        0: { cellWidth: 7, halign: "center" }, // No ABS
+        1: { cellWidth: 16, halign: "center" }, // No INDUK
+        2: { cellWidth: 40, halign: "left" }, // NAMA
         // Kolom hari: lebar kecil (5) - MENGGUNAKAN Object.assign
         ...Object.assign(
           {},
           ...Array.from({ length: daysInMonth }, (_, i) => ({
-            [i + 3]: { cellWidth: 5 },
+            [i + 3]: { cellWidth: 6, halign: "center" },
           }))
         ),
         // S, I, A: lebar 10
-        [3 + daysInMonth]: { cellWidth: 10 },
-        [4 + daysInMonth]: { cellWidth: 10 },
-        [5 + daysInMonth]: { cellWidth: 10 },
+        [3 + daysInMonth]: { cellWidth: 7, halign: "center" },
+        [4 + daysInMonth]: { cellWidth: 7, halign: "center" },
+        [5 + daysInMonth]: { cellWidth: 7, halign: "center" },
       },
     });
 
@@ -5047,8 +5056,7 @@ const DaftarHadirTab: React.FC<{
                 <th className="border px-2 py-1 text-sm">NAMA</th>
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm">
-                    {i + 1}{" "}
-                    {/* Edit: Hanya nomor hari saja, tanpa bulan/tahun */}
+                    {String(i + 1).padStart(2, "0")}
                   </th>
                 ))}
                 <th className="border px-2 py-1 text-sm" colSpan={3}>
