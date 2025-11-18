@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Canvg } from "canvg"; // Install via npm install canvg
 import SignatureCanvas from "react-signature-canvas";
 import {
   Chart as ChartJS,
@@ -210,7 +209,7 @@ const SchoolDataTab: React.FC<{
   };
 
   const handleSaveKepsekSignature = () => {
-    const signature = kepsekSigCanvas.current?.toDataURL("image/svg+xml"); // Ubah ke SVG
+    const signature = kepsekSigCanvas.current?.toDataURL("image/png"); // Ubah ke SVG
     if (signature && !kepsekSigCanvas.current?.isEmpty()) {
       setTtdKepsek(signature);
       setIsKepsekSigning(false);
@@ -220,7 +219,7 @@ const SchoolDataTab: React.FC<{
   };
 
   const handleSaveGuruSignature = () => {
-    const signature = guruSigCanvas.current?.toDataURL("image/svg+xml"); // Ubah ke SVG
+    const signature = guruSigCanvas.current?.toDataURL("image/png");
     if (signature && !guruSigCanvas.current?.isEmpty()) {
       setTtdGuru(signature);
       setIsGuruSigning(false);
@@ -1947,16 +1946,8 @@ const MonthlyRecapTab: React.FC<{
       // Principal signature and text
       if (schoolData.ttdKepsek) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150; // Sesuaikan ukuran canvas (lebar lebih besar untuk tanda tangan panjang)
-          canvas.height = 50; // Sesuaikan ukuran canvas (tinggi cukup untuk garis tanda tangan)
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdKepsek); // schoolData.ttdKepsek adalah base64 SVG
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdKepsek,
             "PNG",
             leftColumnX + 10,
             currentY - 3,
@@ -2019,16 +2010,8 @@ const MonthlyRecapTab: React.FC<{
       // Teacher signature and text
       if (schoolData.ttdGuru) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150; // Sesuaikan ukuran canvas
-          canvas.height = 50;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdGuru,
             "PNG",
             rightColumnX + 10,
             currentY - 5,
@@ -3377,16 +3360,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       // Principal signature and text
       if (schoolData.ttdKepsek) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150; // Sesuaikan ukuran canvas (lebar lebih besar untuk tanda tangan panjang)
-          canvas.height = 50; // Sesuaikan ukuran canvas (tinggi cukup untuk garis tanda tangan)
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdKepsek); // schoolData.ttdKepsek adalah base64 SVG
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdKepsek,
             "PNG",
             leftColumnX + 10,
             currentY - 3,
@@ -3449,16 +3424,8 @@ const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
       // Teacher signature and text
       if (schoolData.ttdGuru) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150; // Sesuaikan ukuran canvas
-          canvas.height = 50;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdGuru); // schoolData.ttdGuru adalah base64 SVG
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdGuru,
             "PNG",
             rightColumnX + 10,
             currentY - 5,
@@ -4569,6 +4536,35 @@ const DaftarHadirTab: React.FC<{
     };
   };
 
+  const getAttendanceByDate = () => {
+    const attendanceByDate: {
+      [day: number]: { hadir: number; total: number };
+    } = {};
+
+    filteredStudents.forEach((student) => {
+      const { attendance } = getAttendanceForStudent(student);
+
+      Array.from({ length: daysInMonth }, (_, day) => {
+        const dayNum = day + 1;
+        const status = attendance[dayNum] || "";
+
+        if (!attendanceByDate[dayNum]) {
+          attendanceByDate[dayNum] = { hadir: 0, total: 0 };
+        }
+
+        if (status === "H") {
+          attendanceByDate[dayNum].hadir += 1;
+        }
+
+        if (status !== "") {
+          attendanceByDate[dayNum].total += 1;
+        }
+      });
+    });
+
+    return attendanceByDate;
+  };
+
   const handleStatusChange = (
     student: Student,
     day: number,
@@ -4750,7 +4746,7 @@ const DaftarHadirTab: React.FC<{
   };
 
   const downloadPDF = async () => {
-    const doc = new jsPDF("landscape"); // Landscape untuk muat banyak kolom
+    const doc = new jsPDF("landscape");
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
     const lineSpacing = 5;
@@ -4767,7 +4763,7 @@ const DaftarHadirTab: React.FC<{
     doc.text(title, pageWidth / 2, currentY, { align: "center" });
     currentY += 10;
 
-    // Headers: Multi-row dengan rowspan untuk kolom awal dan hari, colspan untuk JUMLAH
+    // Headers
     const headers = [
       [
         { content: "No", rowSpan: 2 },
@@ -4781,12 +4777,12 @@ const DaftarHadirTab: React.FC<{
           content: "JUMLAH",
           colSpan: 3,
           styles: { halign: "center" as const },
-        }, // <- TAMBAHKAN 'as const'
+        },
       ],
       ["S", "I", "A"],
     ];
 
-    // Body data
+    // Body data untuk siswa
     const body = filteredStudents.map((student, index) => {
       const { attendance, counts } = getAttendanceForStudent(student);
       return [
@@ -4803,10 +4799,51 @@ const DaftarHadirTab: React.FC<{
       ];
     });
 
-    // Render tabel
+    // Hitung jumlah hadir per tanggal
+    const attendanceByDate = getAttendanceByDate();
+
+    // Baris Jumlah Hadir
+    const jumlahHadirRow = [
+      {
+        content: "Jumlah Hadir",
+        colSpan: 3,
+        styles: { halign: "center" as const, fontStyle: "bold" as const },
+      },
+      ...Array.from({ length: daysInMonth }, (_, day) => {
+        const dayNum = day + 1;
+        const stats = attendanceByDate[dayNum] || { hadir: 0, total: 0 };
+        return stats.hadir;
+      }),
+      "-",
+      "-",
+      "-",
+    ];
+
+    // Baris Persen Hadir
+    const persenHadirRow = [
+      {
+        content: "% Hadir",
+        colSpan: 3,
+        styles: { halign: "center" as const, fontStyle: "bold" as const },
+      },
+      ...Array.from({ length: daysInMonth }, (_, day) => {
+        const dayNum = day + 1;
+        const stats = attendanceByDate[dayNum] || { hadir: 0, total: 0 };
+        const percentage =
+          stats.total > 0
+            ? ((stats.hadir / stats.total) * 100).toFixed(0) + "%"
+            : "0%";
+        return percentage;
+      }),
+      "-",
+      "-",
+      "-",
+    ];
+
+    // Render tabel dengan baris tambahan
     autoTable(doc, {
       head: headers,
-      body: body,
+      body: [...body, jumlahHadirRow, persenHadirRow],
       startY: currentY,
       theme: "grid",
       styles: {
@@ -4821,31 +4858,37 @@ const DaftarHadirTab: React.FC<{
         textColor: [0, 0, 0],
         fontStyle: "bold",
         fontSize: 6,
-        halign: "center", // ← TAMBAHKAN INI untuk header rata tengah
-        valign: "middle", // ← TAMBAHKAN INI untuk header rata tengah vertikal
+        halign: "center",
+        valign: "middle",
       },
       alternateRowStyles: { fillColor: [240, 240, 240] },
       columnStyles: {
-        0: { cellWidth: 7, halign: "center" }, // No ABS
-        1: { cellWidth: 16, halign: "center" }, // No INDUK
-        2: { cellWidth: 40, halign: "left" }, // NAMA
-        // Kolom hari: lebar kecil (5) - MENGGUNAKAN Object.assign
+        0: { cellWidth: 7, halign: "center" },
+        1: { cellWidth: 16, halign: "center" },
+        2: { cellWidth: 40, halign: "left" },
         ...Object.assign(
           {},
           ...Array.from({ length: daysInMonth }, (_, i) => ({
             [i + 3]: { cellWidth: 6, halign: "center" },
           }))
         ),
-        // S, I, A: lebar 10
         [3 + daysInMonth]: { cellWidth: 7, halign: "center" },
         [4 + daysInMonth]: { cellWidth: 7, halign: "center" },
         [5 + daysInMonth]: { cellWidth: 7, halign: "center" },
+      },
+      didParseCell: function (data) {
+        // Styling khusus untuk baris "Jumlah Hadir" dan "% Hadir"
+        if (data.row.index >= body.length) {
+          data.cell.styles.fillColor =
+            data.row.index === body.length ? [219, 234, 254] : [220, 252, 231]; // Biru muda untuk Jumlah Hadir, hijau muda untuk % Hadir
+          data.cell.styles.fontStyle = "bold";
+        }
       },
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 10;
 
-    // Footer: School data, place, date, signatures (tetap sama)
+    // Footer: School data, place, date, signatures (TETAP SAMA seperti sebelumnya)
     if (schoolData) {
       doc.setFontSize(10);
       doc.setFont("Times", "roman");
@@ -4866,19 +4909,10 @@ const DaftarHadirTab: React.FC<{
       const signatureHeight = 20;
       const leftColumnX = margin;
 
-      // Principal signature
       if (schoolData.ttdKepsek) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150;
-          canvas.height = 50;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdKepsek);
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdKepsek,
             "PNG",
             leftColumnX + 10,
             currentY - 3,
@@ -4928,19 +4962,10 @@ const DaftarHadirTab: React.FC<{
         { align: "center" }
       );
 
-      // Teacher signature
       if (schoolData.ttdGuru) {
         try {
-          const canvas = document.createElement("canvas");
-          canvas.width = 150;
-          canvas.height = 50;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Failed to get canvas context");
-          const v = await Canvg.from(ctx, schoolData.ttdGuru);
-          v.start();
-          const pngData = canvas.toDataURL("image/png");
           doc.addImage(
-            pngData,
+            schoolData.ttdGuru,
             "PNG",
             rightColumnX + 10,
             currentY - 5,
@@ -5108,7 +5133,8 @@ const DaftarHadirTab: React.FC<{
         </div>
 
         <div className="overflow-auto relative" style={{ maxHeight: "70vh" }}>
-          <style>{`
+          <style>
+            {`
   .attendance-table thead tr:first-child th {
     position: sticky;
     top: 0;
@@ -5121,7 +5147,6 @@ const DaftarHadirTab: React.FC<{
     top: 33px;
     z-index: 30;
     background: #f3f4f6;
-  }
   
   .attendance-table th.freeze-no,
   .attendance-table td.freeze-no {
@@ -5178,7 +5203,14 @@ const DaftarHadirTab: React.FC<{
     z-index: 40;
     background: #f3f4f6 !important;
   }
-`}</style>
+  .attendance-table tfoot td.freeze-no {
+    position: sticky;
+    left: 0;
+    z-index: 25;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  }
+`}
+          </style>
 
           <table className="attendance-table min-w-full border-collapse border border-gray-200">
             <thead>
@@ -5330,6 +5362,73 @@ const DaftarHadirTab: React.FC<{
                 );
               })}
             </tbody>
+            <tfoot>
+              {/* Baris Jumlah Hadir */}
+              <tr className="bg-blue-50 font-semibold">
+                <td
+                  className="freeze-no border px-2 py-1 text-xs text-center"
+                  colSpan={2}
+                >
+                  Jumlah Hadir
+                </td>
+                {Array.from({ length: daysInMonth }, (_, day) => {
+                  const dayNum = day + 1;
+                  const stats = getAttendanceByDate()[dayNum] || {
+                    hadir: 0,
+                    total: 0,
+                  };
+                  return (
+                    <td
+                      key={day}
+                      className="border px-1 py-1 text-center text-xs"
+                    >
+                      {stats.hadir}
+                    </td>
+                  );
+                })}
+                <td
+                  className="border px-2 py-1 text-xs text-center"
+                  colSpan={3}
+                >
+                  -
+                </td>
+              </tr>
+
+              {/* Baris Persen Hadir */}
+              <tr className="bg-green-50 font-semibold">
+                <td
+                  className="freeze-no border px-2 py-1 text-xs text-center"
+                  colSpan={2}
+                >
+                  % Hadir
+                </td>
+                {Array.from({ length: daysInMonth }, (_, day) => {
+                  const dayNum = day + 1;
+                  const stats = getAttendanceByDate()[dayNum] || {
+                    hadir: 0,
+                    total: 0,
+                  };
+                  const percentage =
+                    stats.total > 0
+                      ? ((stats.hadir / stats.total) * 100).toFixed(0)
+                      : "0";
+                  return (
+                    <td
+                      key={day}
+                      className="border px-1 py-1 text-center text-xs"
+                    >
+                      {percentage}%
+                    </td>
+                  );
+                })}
+                <td
+                  className="border px-2 py-1 text-xs text-center"
+                  colSpan={3}
+                >
+                  -
+                </td>
+              </tr>
+            </tfoot>
           </table>
           {Object.keys(editedRecords).length > 0 && (
             <div className="mt-6 flex justify-center gap-4">
