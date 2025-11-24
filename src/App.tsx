@@ -2563,420 +2563,6 @@ const GraphTab: React.FC<{
   );
 };
 
-const AttendanceHistoryTab: React.FC<{
-  students: Student[];
-  uniqueClasses: string[];
-  onRefresh: () => void;
-}> = ({ students, uniqueClasses, onRefresh }) => {
-  const [attendanceData, setAttendanceData] = useState<AttendanceHistory[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [selectedKelas, setSelectedKelas] = useState<string>("Semua");
-  const [selectedNama, setSelectedNama] = useState<string>("Semua");
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [editedRecords, setEditedRecords] = useState<
-    Record<string, AttendanceStatus>
-  >({});
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-
-  const formatDateToDDMMYYYY = (dateStr: string): string => {
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
-    const [datePart] = dateStr.split("T");
-    const [year, month, day] = datePart.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
-  const filterNonFormulaData = (
-    data: AttendanceHistory[]
-  ): AttendanceHistory[] => {
-    return data.filter((record) => {
-      const hasValidTanggal =
-        record.tanggal &&
-        !record.tanggal.toString().startsWith("=") &&
-        record.tanggal.toString().trim() !== "" &&
-        record.tanggal.toString() !== "#N/A" &&
-        record.tanggal.toString() !== "#REF!" &&
-        record.tanggal.toString() !== "#VALUE!" &&
-        record.tanggal.toString() !== "#ERROR!" &&
-        !record.tanggal.toString().includes("FORMULA");
-
-      const hasValidNama =
-        record.nama &&
-        !record.nama.toString().startsWith("=") &&
-        record.nama.toString().trim() !== "" &&
-        record.nama.toString() !== "#N/A" &&
-        record.nama.toString() !== "#REF!" &&
-        record.nama.toString() !== "#VALUE!" &&
-        record.nama.toString() !== "#ERROR!" &&
-        !record.nama.toString().includes("FORMULA");
-
-      const hasValidNisn =
-        record.nisn &&
-        !record.nisn.toString().startsWith("=") &&
-        record.nisn.toString().trim() !== "" &&
-        record.nisn.toString() !== "#N/A" &&
-        record.nisn.toString() !== "#REF!" &&
-        record.nisn.toString() !== "#VALUE!" &&
-        record.nisn.toString() !== "#ERROR!" &&
-        !record.nisn.toString().includes("FORMULA");
-
-      const hasValidKelas =
-        record.kelas &&
-        !record.kelas.toString().startsWith("=") &&
-        record.kelas.toString().trim() !== "" &&
-        record.kelas.toString() !== "#N/A" &&
-        record.kelas.toString() !== "#REF!" &&
-        record.kelas.toString() !== "#VALUE!" &&
-        record.kelas.toString() !== "#ERROR!" &&
-        !record.kelas.toString().includes("FORMULA");
-
-      const hasValidStatus =
-        record.status &&
-        !record.status.toString().startsWith("=") &&
-        record.status.toString().trim() !== "" &&
-        record.status.toString() !== "#N/A" &&
-        record.status.toString() !== "#REF!" &&
-        record.status.toString() !== "#VALUE!" &&
-        record.status.toString() !== "#ERROR!" &&
-        !record.status.toString().includes("FORMULA") &&
-        ["Hadir", "Izin", "Sakit", "Alpha"].includes(record.status.toString());
-
-      return (
-        hasValidTanggal &&
-        hasValidNama &&
-        hasValidNisn &&
-        hasValidKelas &&
-        hasValidStatus
-      );
-    });
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(`${endpoint}?action=attendanceHistory`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        if (data.success) {
-          const newData = data.data || [];
-          const filteredData = filterNonFormulaData(newData);
-
-          const updatedData = filteredData.map((record: AttendanceHistory) => {
-            const key = `${record.tanggal}_${record.nisn}`;
-            return {
-              ...record,
-              status: editedRecords[key] || record.status,
-            };
-          });
-          setAttendanceData(updatedData);
-        } else {
-          if (data.message === "Tidak ada data di sheet Absensi") {
-            setAttendanceData([]);
-          } else {
-            alert("❌ Gagal memuat data riwayat absensi: " + data.message);
-            setAttendanceData([]);
-          }
-        }
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetch:", error);
-        alert(
-          "❌ Gagal memuat data riwayat absensi. Cek console untuk detail."
-        );
-        setLoading(false);
-      });
-  }, [onRefresh]);
-
-  const handleUpdateStatus = (
-    record: AttendanceHistory,
-    newStatus: AttendanceStatus
-  ) => {
-    const key = `${record.tanggal}_${record.nisn}`;
-    setEditedRecords((prev) => ({
-      ...prev,
-      [key]: newStatus,
-    }));
-    setAttendanceData((prev) =>
-      prev.map((item) =>
-        item.tanggal === record.tanggal && item.nisn === record.nisn
-          ? { ...item, status: newStatus }
-          : item
-      )
-    );
-  };
-
-  const handleDeleteAllAttendance = () => {
-    if (
-      confirm(
-        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
-      )
-    ) {
-      setIsDeleting(true);
-      fetch(endpoint, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "deleteAllAttendance",
-          sheetName: "absensi",
-        }),
-      })
-        .then(() => {
-          alert(
-            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
-          );
-          setAttendanceData([]);
-          setEditedRecords({});
-          onRefresh();
-        })
-        .catch(() =>
-          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
-        )
-        .finally(() => setIsDeleting(false));
-    }
-  };
-
-  const filteredStudents = React.useMemo(() => {
-    return selectedKelas === "Semua"
-      ? students
-      : students.filter(
-          (student) => String(student.kelas).trim() === selectedKelas
-        );
-  }, [students, selectedKelas]);
-
-  const uniqueNames = React.useMemo(() => {
-    const names = filteredStudents
-      .map((student) => student.name)
-      .filter((name): name is string => name != null && name.trim() !== "");
-    return ["Semua", ...Array.from(new Set(names)).sort()];
-  }, [filteredStudents]);
-
-  const filteredAttendanceData = React.useMemo(() => {
-    return attendanceData.filter((record) => {
-      const matchesKelas =
-        selectedKelas === "Semua" ||
-        String(record.kelas).trim() === selectedKelas;
-      const matchesNama =
-        selectedNama === "Semua" || record.nama === selectedNama;
-      const matchesDate =
-        selectedDate === "" || record.tanggal === selectedDate;
-      return matchesKelas && matchesNama && matchesDate;
-    });
-  }, [attendanceData, selectedKelas, selectedNama, selectedDate]);
-
-  useEffect(() => {
-    setSelectedNama("Semua");
-  }, [selectedKelas]);
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isoDate = e.target.value;
-    if (isoDate) {
-      setSelectedDate(formatDateToDDMMYYYY(isoDate));
-    } else {
-      setSelectedDate("");
-    }
-  };
-
-  const statusColor: Record<AttendanceStatus, string> = {
-    Hadir: "bg-green-500",
-    Izin: "bg-yellow-400",
-    Sakit: "bg-blue-400",
-    Alpha: "bg-red-500",
-  };
-
-  const saveChanges = () => {
-    if (Object.keys(editedRecords).length === 0) {
-      alert("⚠️ Tidak ada perubahan yang perlu disimpan.");
-      return;
-    }
-
-    setIsSaving(true);
-    const updates = Object.entries(editedRecords).map(([key, status]) => {
-      const [tanggal, nisn] = key.split("_");
-      return { tanggal, nisn, status };
-    });
-
-    fetch(endpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "bulkUpdateAttendance",
-        updates,
-      }),
-    })
-      .then(() => {
-        alert("✅ Perubahan status kehadiran berhasil disimpan!");
-        setEditedRecords({});
-        onRefresh();
-      })
-      .catch(() => alert("❌ Gagal menyimpan perubahan status kehadiran."))
-      .finally(() => setIsSaving(false));
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto" style={{ paddingBottom: "70px" }}>
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-blue-700 mb-6">
-          📜 Riwayat Absensi
-        </h2>
-
-        <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-center">
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Kelas</p>
-            <select
-              value={selectedKelas}
-              onChange={(e) => setSelectedKelas(e.target.value)}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            >
-              {uniqueClasses.map((kelas) => (
-                <option key={kelas} value={kelas}>
-                  {kelas}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Nama Siswa</p>
-            <select
-              value={selectedNama}
-              onChange={(e) => setSelectedNama(e.target.value)}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm bg-white min-w-32"
-            >
-              {uniqueNames.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-2">Filter Tanggal</p>
-            <input
-              type="date"
-              onChange={handleDateChange}
-              className="border border-gray-300 rounded-lg px-1 py-0.5 shadow-sm"
-            />
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Memuat riwayat...</p>
-          </div>
-        ) : filteredAttendanceData.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              Tidak ada data riwayat absensi yang sesuai dengan filter.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    Tanggal
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    Nama
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    Kelas
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-left text-sm font-semibold text-gray-700">
-                    NISN
-                  </th>
-                  <th className="border border-gray-200 px-1 py-0.5 text-center text-sm font-semibold text-gray-700">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAttendanceData.map((record, index) => {
-                  const key = `${record.tanggal}_${record.nisn}`;
-                  const currentStatus = editedRecords[key] || record.status;
-                  return (
-                    <tr
-                      key={index}
-                      className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {record.tanggal || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {record.nama || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {record.kelas || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-sm text-gray-600">
-                        {record.nisn || "N/A"}
-                      </td>
-                      <td className="border border-gray-200 px-1 py-0.5 text-center">
-                        <div className="flex justify-between">
-                          {(["Hadir", "Izin", "Sakit", "Alpha"] as const).map(
-                            (status) => (
-                              <button
-                                key={status}
-                                onClick={() =>
-                                  handleUpdateStatus(record, status)
-                                }
-                                style={{ width: "2cm" }}
-                                className={`px-1 py-0.5 rounded-lg text-xs font-medium transition-colors ${
-                                  currentStatus === status
-                                    ? `${statusColor[status]} text-white`
-                                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                                }`}
-                              >
-                                {status}
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="mt-6 flex flex-col md:flex-row gap-4 justify-center">
-          {Object.keys(editedRecords).length > 0 && (
-            <button
-              onClick={saveChanges}
-              disabled={isSaving}
-              className={`px-6 py-2 text-white rounded-lg font-medium ${
-                isSaving
-                  ? "bg-blue-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              {isSaving ? "Memproses..." : "💾 Simpan Perubahan"}
-            </button>
-          )}
-          <button
-            onClick={handleDeleteAllAttendance}
-            disabled={isDeleting}
-            className={`px-6 py-2 text-white rounded-lg font-medium ${
-              isDeleting
-                ? "bg-red-400 cursor-not-allowed"
-                : "bg-red-600 hover:bg-red-700"
-            }`}
-          >
-            {isDeleting ? "Memproses..." : "🗑️ Hapus Semua Data Absensi"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const SemesterRecapTab: React.FC<{ uniqueClasses: string[] }> = ({
   uniqueClasses,
 }) => {
@@ -3983,7 +3569,6 @@ const StudentAttendanceApp: React.FC = () => {
     | "attendance"
     | "recap"
     | "graph"
-    | "history"
     | "semesterRecap"
     | "daftarHadir"
     | "clearData"
@@ -4077,7 +3662,6 @@ const StudentAttendanceApp: React.FC = () => {
           { tab: "recap", label: "📊 Rekap Bulanan" },
           { tab: "semesterRecap", label: "📚 Rekap Semester" },
           { tab: "graph", label: "📈 Grafik" },
-          { tab: "history", label: "📜 Riwayat Absen" },
           { tab: "daftarHadir", label: "📋 Daftar Hadir" },
           { tab: "clearData", label: "🗑️ Hapus Data" },
         ].map(({ tab, label }) => (
@@ -4091,7 +3675,6 @@ const StudentAttendanceApp: React.FC = () => {
                   | "attendance"
                   | "recap"
                   | "graph"
-                  | "history"
                   | "semesterRecap"
                   | "clearData"
               );
@@ -4164,13 +3747,6 @@ const StudentAttendanceApp: React.FC = () => {
             />
           )}
           {activeTab === "graph" && <GraphTab uniqueClasses={uniqueClasses} />}
-          {activeTab === "history" && (
-            <AttendanceHistoryTab
-              students={students}
-              uniqueClasses={uniqueClasses}
-              onRefresh={fetchStudents}
-            />
-          )}
           {activeTab === "semesterRecap" && (
             <SemesterRecapTab uniqueClasses={uniqueClasses} />
           )}
@@ -4211,6 +3787,7 @@ const DaftarHadirTab: React.FC<{
   const [placeName, setPlaceName] = useState<string>("Makassar");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   const months = [
     { value: 1, label: "Januari" },
@@ -4408,9 +3985,7 @@ const DaftarHadirTab: React.FC<{
 
   const getAttendanceForStudent = (student: Student) => {
     const studentAttendance: { [day: number]: string } = {};
-    let countS = 0,
-      countI = 0,
-      countA = 0;
+    // Variabel counts akan dihitung di akhir setelah semua data terkumpul
 
     console.log(`\n=== Processing ${student.name} (NISN: ${student.nisn}) ===`);
 
@@ -4523,16 +4098,34 @@ const DaftarHadirTab: React.FC<{
     });
 
     // LANGKAH 3: Hitung counts dari studentAttendance yang sudah final
-    countS = Object.values(studentAttendance).filter((v) => v === "S").length;
-    countI = Object.values(studentAttendance).filter((v) => v === "I").length;
-    countA = Object.values(studentAttendance).filter((v) => v === "A").length;
+    const countH = Object.values(studentAttendance).filter(
+      (v) => v === "H"
+    ).length;
+    const countS = Object.values(studentAttendance).filter(
+      (v) => v === "S"
+    ).length;
+    const countI = Object.values(studentAttendance).filter(
+      (v) => v === "I"
+    ).length;
+    const countA = Object.values(studentAttendance).filter(
+      (v) => v === "A"
+    ).length;
 
     console.log("Final attendance:", studentAttendance);
-    console.log("Counts - S:", countS, "I:", countI, "A:", countA);
+    console.log(
+      "Counts - H:",
+      countH,
+      "S:",
+      countS,
+      "I:",
+      countI,
+      "A:",
+      countA
+    );
 
     return {
       attendance: studentAttendance,
-      counts: { S: countS, I: countI, A: countA },
+      counts: { H: countH, S: countS, I: countI, A: countA },
     };
   };
 
@@ -4745,6 +4338,37 @@ const DaftarHadirTab: React.FC<{
     }
   };
 
+  const handleDeleteAllAttendance = () => {
+    if (
+      confirm(
+        "Yakin ingin menghapus semua data absensi di sheet 'absensi'? Header tidak akan terhapus."
+      )
+    ) {
+      setIsDeleting(true);
+      fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deleteAllAttendance",
+          sheetName: "absensi",
+        }),
+      })
+        .then(() => {
+          alert(
+            "✅ Semua data absensi di sheet 'absensi' berhasil dihapus. Header tetap utuh."
+          );
+          setAttendanceData([]);
+          setEditedRecords({});
+          fetchAttendanceData();
+        })
+        .catch(() =>
+          alert("❌ Gagal menghapus data absensi di sheet 'absensi'.")
+        )
+        .finally(() => setIsDeleting(false));
+    }
+  };
+
   const downloadPDF = async () => {
     const doc = new jsPDF("landscape");
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -4775,11 +4399,11 @@ const DaftarHadirTab: React.FC<{
         })),
         {
           content: "JUMLAH",
-          colSpan: 3,
+          colSpan: 4,
           styles: { halign: "center" as const },
         },
       ],
-      ["S", "I", "A"],
+      ["H", "S", "I", "A"],
     ];
 
     // Body data untuk siswa
@@ -4793,6 +4417,7 @@ const DaftarHadirTab: React.FC<{
           { length: daysInMonth },
           (_, day) => attendance[day + 1] || "-"
         ),
+        counts.H,
         counts.S,
         counts.I,
         counts.A,
@@ -4817,9 +4442,9 @@ const DaftarHadirTab: React.FC<{
       "-",
       "-",
       "-",
+      "-",
     ];
 
-    // Baris Persen Hadir
     const persenHadirRow = [
       {
         content: "% Hadir",
@@ -4835,6 +4460,7 @@ const DaftarHadirTab: React.FC<{
             : "0%";
         return percentage;
       }),
+      "-",
       "-",
       "-",
       "-",
@@ -4875,6 +4501,7 @@ const DaftarHadirTab: React.FC<{
         [3 + daysInMonth]: { cellWidth: 7, halign: "center" },
         [4 + daysInMonth]: { cellWidth: 7, halign: "center" },
         [5 + daysInMonth]: { cellWidth: 7, halign: "center" },
+        [6 + daysInMonth]: { cellWidth: 7, halign: "center" },
       },
       didParseCell: function (data) {
         // Styling khusus untuk baris "Jumlah Hadir" dan "% Hadir"
@@ -5222,7 +4849,7 @@ const DaftarHadirTab: React.FC<{
                     {String(i + 1).padStart(2, "0")}
                   </th>
                 ))}
-                <th className="border px-2 py-1 text-sm" colSpan={3}>
+                <th className="border px-2 py-1 text-sm" colSpan={4}>
                   JUMLAH
                 </th>
               </tr>
@@ -5232,6 +4859,7 @@ const DaftarHadirTab: React.FC<{
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <th key={i} className="border px-1 py-1 text-sm"></th>
                 ))}
+                <th className="border px-2 py-1 text-sm">H</th>
                 <th className="border px-2 py-1 text-sm">S</th>
                 <th className="border px-2 py-1 text-sm">I</th>
                 <th className="border px-2 py-1 text-sm">A</th>
@@ -5350,6 +4978,9 @@ const DaftarHadirTab: React.FC<{
                       );
                     })}
                     <td className="border px-2 py-1 text-center text-xs">
+                      {counts.H}
+                    </td>
+                    <td className="border px-2 py-1 text-center text-xs">
                       {counts.S}
                     </td>
                     <td className="border px-2 py-1 text-center text-xs">
@@ -5423,7 +5054,7 @@ const DaftarHadirTab: React.FC<{
                 })}
                 <td
                   className="border px-2 py-1 text-xs text-center"
-                  colSpan={3}
+                  colSpan={4}
                 >
                   -
                 </td>
@@ -5457,13 +5088,22 @@ const DaftarHadirTab: React.FC<{
             </div>
           )}
           <div className="mt-6 flex justify-center gap-4">
-            {" "}
-            {/* mt-6 ini bisa disesuaikan jika terlalu jauh */}
             <button
               onClick={downloadPDF}
               className="px-1 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
             >
               📄 Download PDF
+            </button>
+            <button
+              onClick={handleDeleteAllAttendance}
+              disabled={isDeleting}
+              className={`px-6 py-2 text-white rounded-lg font-medium ${
+                isDeleting
+                  ? "bg-red-400 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {isDeleting ? "Memproses..." : "🗑️ Hapus Semua Data Absensi"}
             </button>
           </div>
         </div>
